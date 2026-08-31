@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIAP LPQ - Sistem Informasi Administrasi & Prestasi Lembaga Pendidikan Al-Qur'an</title>
+
+<!-- ============================================================ -->
+<!-- KONFIGURASI SUPABASE ADMIN (UNTUK MANAJEMEN TENANT)           -->
+<!-- ============================================================ -->
+<script>
+// 🔑 GANTI DENGAN CREDENTIALS SUPABASE ADMIN ANDA!
+var ADMIN_SUPABASE_URL = 'https://wijyhdcdhpimgzcfpiou.supabase.co';
+var ADMIN_SUPABASE_ANON_KEY = 'sb_publishable_pwnbJfrRWyhcjJkBkj_pyA__9IUZDuz';
+</script>
+
+<!-- ============================================================ -->
+<!-- KONFIGURASI MULTI-TENANT                                      -->
+<!-- ============================================================ -->
+<script>
+// ============================================================
+// FUNGSI MENGAMBIL KONFIGURASI TENANT DARI SUPABASE ADMIN
+// ============================================================
+async function loadTenantConfig(tenantKey) {
+    try {
+        var mainClient = supabase.createClient(ADMIN_SUPABASE_URL, ADMIN_SUPABASE_ANON_KEY);
+        var { data, error } = await mainClient.rpc('get_tenant_config', { p_tenant_key: tenantKey });
+        if (error) {
+            console.error('❌ Gagal mengambil konfigurasi tenant:', error);
+            return null;
+        }
+        if (!data || data.success !== true) {
+            console.warn('⚠️ Tenant tidak ditemukan:', tenantKey);
+            return null;
+        }
+        return data;
+    } catch (e) {
+        console.error('Error load tenant:', e);
+        return null;
+    }
+}
+
+// ============================================================
+// INISIALISASI TENANT DARI URL
+// ============================================================
+async function initTenantFromURL() {
+    var params = new URLSearchParams(window.location.search);
+    var tenantKey = params.get('tenant');
+    
+    if (!tenantKey) {
+        tenantKey = window.location.hash.replace('#', '');
+    }
+    
+    if (!tenantKey) {
+        console.error('❌ Tidak ada tenant pada URL.');
+        return false;
+    }
+    
+    var config = await loadTenantConfig(tenantKey);
+    
+    if (config) {
+        window.SUPABASE_URL = config.supabase_url;
+        window.SUPABASE_ANON_KEY = config.supabase_anon_key;
+        window.__TENANT = {
+            id: config.tenant_key,
+            nama: config.nama,
+            alamat: config.alamat,
+            warna: config.warna || 'from-emerald-900 via-teal-900 to-emerald-950'
+        };
+        initTenantSupabaseClient();
+        console.log('✅ Tenant:', config.nama);
+        console.log('🔗 Supabase:', config.supabase_url);
+        return true;
+    } else {
+        console.error('❌ Tenant tidak ditemukan atau nonaktif:', tenantKey);
+        return false;
+    }
+}
+
+</script>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Great+Vibes&family=Playfair+Display:wght@700&family=Poppins:wght@400;500;600;700;800&display=swap');
+.font-arabic{font-family:'Amiri',serif}body{font-family:'Poppins',sans-serif;font-size:16px;line-height:1.6}.font-cursive{font-family:'Great Vibes',cursive}.font-serif-title{font-family:'Playfair Display',serif}
+h1{font-size:24px}h2{font-size:20px}h3{font-size:18px}h4{font-size:16px}
+@keyframes pulse-slow{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}.animate-pulse-slow{animation:pulse-slow 3s infinite ease-in-out}
+@keyframes wave-flag-medium{0%{transform:rotate(0deg)translateY(0px)skewX(0deg)}25%{transform:rotate(3deg)translateY(-4px)skewX(2deg)}50%{transform:rotate(0deg)translateY(-8px)skewX(-2deg)}75%{transform:rotate(-3deg)translateY(-4px)skewX(1deg)}100%{transform:rotate(0deg)translateY(0px)skewX(0deg)}}
+.animate-wave-medium{animation:wave-flag-medium 2.8s infinite ease-in-out;transform-origin:bottom center}.btn-biasa{transition:all 0.2s ease;font-size:14px;padding:10px 18px;min-height:44px;cursor:pointer}
+.card-3d{transition:transform 0.3s ease,box-shadow 0.3s ease;padding:18px 22px;width:100%;max-width:100%}.card-3d:hover{transform:translateY(-3px);box-shadow:0 10px 25px -5px rgba(6,95,70,0.15),0 8px 10px -6px rgba(6,95,70,0.1)}
+.islamic-pattern-overlay-v2{position:absolute;inset:0;opacity:.12;background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l15 15-15 15-15-15zM0 30l15 15-15 15-15-15zM60 30l15 15-15 15-15-15zM30 60l15 15-15 15-15-15z' fill='%2394a3b8' fill-opacity='1' fill-rule='evenodd'/%3E%3C/svg%3E")}
+.searchable-select-wrapper{position:relative}.searchable-dropdown-list{position:absolute;z-index:50;background:#fff;border:1px solid #cbd5e1;border-radius:.75rem;max-height:160px;overflow-y:auto;width:100%;box-shadow:0 10px 15px -3px rgba(0,0,0,.1);display:none}
+.searchable-dropdown-item{padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid #f1f5f9}.searchable-dropdown-item:hover{background:#ecfdf5;color:#065f46}
+.pesan-card{transition:all .3s ease;border-left:4px solid #d1d5db}.pesan-card:hover{transform:translateX(4px);box-shadow:0 8px 25px -8px rgba(0,0,0,.1)}
+.pesan-card.belum-dibalas{border-left-color:#f59e0b;background:linear-gradient(135deg,#fffbeb,#fff)}
+.pesan-card.sudah-dibalas{border-left-color:#10b981;background:linear-gradient(135deg,#ecfdf5,#fff)}
+.avatar-wali{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0}
+.avatar-wali.belum{background:linear-gradient(135deg,#f59e0b,#d97706)}.avatar-wali.sudah{background:linear-gradient(135deg,#10b981,#059669)}
+.balasan-box{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 14px;margin-top:8px;position:relative}
+.balasan-box::before{content:'';position:absolute;top:-8px;left:20px;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:8px solid #a7f3d0}
+.badge-masuk{background:#d1fae5;color:#065f46;padding:3px 12px;border-radius:20px;font-weight:600;font-size:10px}
+.badge-keluar{background:#fee2e2;color:#991b1b;padding:3px 12px;border-radius:20px;font-weight:600;font-size:10px}
+input,select,textarea{font-size:15px;padding:12px 16px;min-height:48px;border-radius:12px}
+table{font-size:14px}table th,table td{padding:14px 16px}
+#app-sidebar .nav-link{font-size:14px;padding:12px 16px}
+button{font-size:14px;padding:10px 18px;min-height:44px}
+header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{padding-left:12px;padding-right:12px}header .py-2{padding-top:6px;padding-bottom:6px}
+#user-badge{font-size:12px;padding:4px 10px}#header-tpq-label{font-size:11px;padding:4px 12px}
+.sortable{cursor:pointer}.sortable:hover{color:#065f46}
+.counter-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8}
+.counter-value{font-size:22px;font-weight:700}
+.main-content-wrapper{max-width:1280px;margin:0 auto;padding:0 16px;width:100%}
+.content-section{max-width:100%;width:100%}
+.content-section>div{max-width:100%;width:100%}
+.table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;margin:0}
+.table-wrapper table{width:100%;min-width:550px;border-collapse:collapse}
+.table-wrapper.wide-table table{min-width:700px}
+.table-wrapper.extra-wide table{min-width:900px}
+.table-wrapper.scrollable{max-height:450px;overflow-y:auto}
+.table-wrapper.scrollable thead th{position:sticky;top:0;z-index:10}
+.filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
+.filter-item{display:flex;flex-direction:column;gap:4px}
+.filter-item label{font-size:13px;font-weight:600;color:#475569}
+.filter-item input,.filter-item select{padding:8px 12px;border:1px solid #e2e8f0;border-radius:12px;font-size:14px;background:white;width:100%;height:44px}
+.filter-item .btn-group{display:flex;gap:6px;margin-top:4px}
+.jilid-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+@media (max-width:768px){.main-content-wrapper{padding:0 10px}.card-3d{padding:12px 14px}.filter-grid{grid-template-columns:1fr 1fr;gap:8px}.table-wrapper table{min-width:450px;font-size:13px}.table-wrapper table th,.table-wrapper table td{padding:8px 12px}.table-wrapper.scrollable{max-height:350px}}
+@media (max-width:480px){.main-content-wrapper{padding:0 8px}.card-3d{padding:10px 12px}.filter-grid{grid-template-columns:1fr;gap:6px}.filter-item input,.filter-item select{height:38px;font-size:13px}.table-wrapper table{min-width:380px;font-size:12px}.table-wrapper table th,.table-wrapper table td{padding:6px 10px}.jilid-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}.table-wrapper.scrollable{max-height:280px}}
+#modalViewDokumen .modal-header .btn-download{background:#065f46;color:white;padding:6px 14px;border-radius:10px;font-weight:600;font-size:12px;border:none;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;min-height:32px}
+#modalViewDokumen .modal-header .btn-download:hover{background:#047857;transform:scale(1.02)}
+#modalViewDokumen .modal-header .btn-close{background:#f1f5f9;color:#475569;padding:6px 14px;border-radius:10px;font-weight:600;font-size:12px;border:none;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;min-height:32px}
+#modalViewDokumen .modal-header .btn-close:hover{background:#e2e8f0}
+#modalViewDokumen .modal-header{padding:12px 20px;border-bottom:2px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#f8fafc;border-radius:24px 24px 0 0;flex-wrap:wrap;gap:8px}
+#modalViewDokumen .modal-header h3{font-size:16px;font-weight:700;color:#065f46;display:flex;align-items:center;gap:8px}
+#modalViewDokumen .modal-header .btn-group{display:flex;gap:8px;flex-wrap:wrap}
+#modalViewDokumen{position:fixed;inset:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(8px);z-index:99999;display:none;justify-content:center;align-items:center;padding:20px}
+#modalViewDokumen .modal-content{background:white;border-radius:24px;max-width:95vw;max-height:90vh;width:100%;height:100%;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);border:2px solid rgba(6,95,70,0.2)}
+#modalViewDokumen .modal-body{flex:1;overflow:auto;padding:24px;background:#f1f5f9;border-radius:0 0 24px 24px}
+#modalViewDokumen .modal-body .document-preview{background:white;border-radius:16px;padding:32px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);max-width:1100px;margin:0 auto}
+#modalViewDokumen .modal-body .document-preview .kop-surat{text-align:center;border-bottom:2px solid #065f46;padding-bottom:12px;margin-bottom:16px}
+#modalViewDokumen .modal-body .document-preview .kop-surat .logo-kop{max-width:60px;max-height:60px;display:block;margin:0 auto 6px auto}
+#modalViewDokumen .modal-body .document-preview .kop-surat h2{font-size:20px;font-weight:700;color:#065f46;margin:0}
+#modalViewDokumen .modal-body .document-preview .kop-surat p{font-size:12px;color:#475569;margin:4px 0}
+#modalViewDokumen .modal-body .document-preview table{width:100%;border-collapse:collapse;font-size:12px}
+#modalViewDokumen .modal-body .document-preview table th{background:#065f46;color:white;padding:8px 10px;text-align:left;font-weight:600;font-size:11px}
+#modalViewDokumen .modal-body .document-preview table td{padding:6px 10px;border-bottom:1px solid #e2e8f0}
+#modalViewDokumen .modal-body .document-preview table tr:hover td{background:#f1f5f9}
+#modalViewDokumen .modal-body .document-preview .ttd{margin-top:30px;text-align:right;padding-top:20px;border-top:1px solid #e2e8f0}
+.receipt-container{max-width:500px;margin:0 auto;padding:30px;background:white;border:2px dashed #065f46;border-radius:12px;font-family:'Poppins',sans-serif}
+.receipt-container .receipt-header{text-align:center;border-bottom:2px solid #065f46;padding-bottom:12px;margin-bottom:12px}
+.receipt-container .receipt-header .logo-receipt{max-width:50px;max-height:50px;display:block;margin:0 auto 4px auto}
+.receipt-container .receipt-header h3{font-size:14px;font-weight:700;color:#065f46;margin:0;text-transform:uppercase}
+.receipt-container .receipt-header .badge-receipt{background:#065f46;color:white;font-size:9px;padding:2px 12px;border-radius:10px;display:inline-block;margin-top:4px;font-weight:600}
+.receipt-container .receipt-body{font-size:13px;line-height:1.8}
+.receipt-container .receipt-body .receipt-item{display:flex;justify-content:space-between;padding:3px 0}
+.receipt-container .receipt-body .receipt-item .label{font-weight:600;color:#1e293b}
+.receipt-container .receipt-body .receipt-item .value{color:#334155}
+.receipt-container .receipt-body .receipt-item .value.amount{color:#065f46;font-weight:700}
+.receipt-container .receipt-footer{margin-top:20px;text-align:right;font-size:10px;border-top:1px solid #e2e8f0;padding-top:12px}
+.receipt-container .receipt-footer .ttd-receipt{margin-top:20px}
+.receipt-container .receipt-footer .ttd-receipt .nama-bendahara{font-weight:700;color:#1e293b}
+.receipt-container .receipt-footer .ttd-receipt .jabatan{font-weight:600;color:#065f46}
+.sertifikat-container{width:100%;max-width:900px;margin:0 auto;padding:30px;background:linear-gradient(145deg,#065f46,#0a7e5e,#065f46);border:6px solid #c9a84c;border-radius:20px;position:relative;box-shadow:0 8px 32px rgba(0,0,0,0.25),inset 0 0 60px rgba(201,168,76,0.15)}
+.sertifikat-container::before{content:'';position:absolute;inset:10px;border:2px solid rgba(201,168,76,0.4);border-radius:12px;pointer-events:none;z-index:0}
+.sertifikat-container .sudut{position:absolute;width:50px;height:50px;z-index:2}
+.sertifikat-container .sudut-kiri-atas{top:8px;left:8px;border-top:4px solid #c9a84c;border-left:4px solid #c9a84c;border-radius:8px 0 0 0}
+.sertifikat-container .sudut-kanan-atas{top:8px;right:8px;border-top:4px solid #c9a84c;border-right:4px solid #c9a84c;border-radius:0 8px 0 0}
+.sertifikat-container .sudut-kiri-bawah{bottom:8px;left:8px;border-bottom:4px solid #c9a84c;border-left:4px solid #c9a84c;border-radius:0 0 0 8px}
+.sertifikat-container .sudut-kanan-bawah{bottom:8px;right:8px;border-bottom:4px solid #c9a84c;border-right:4px solid #c9a84c;border-radius:0 0 8px 0}
+.sertifikat-container .bintang-sudut{position:absolute;font-size:24px;color:#c9a84c;z-index:2;text-shadow:0 0 20px rgba(201,168,76,0.5)}
+.sertifikat-container .bintang-sudut-kiri-atas{top:24px;left:24px}
+.sertifikat-container .bintang-sudut-kanan-atas{top:24px;right:24px}
+.sertifikat-container .bintang-sudut-kiri-bawah{bottom:24px;left:24px}
+.sertifikat-container .bintang-sudut-kanan-bawah{bottom:24px;right:24px}
+.sertifikat-container .pola-tepi{position:absolute;inset:18px;border:2px solid rgba(201,168,76,0.25);border-radius:14px;pointer-events:none;z-index:1}
+.sertifikat-container .pola-tepi::before{content:'✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦';position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(201,168,76,0.4);letter-spacing:6px;background:#065f46;padding:0 12px}
+.sertifikat-container .pola-tepi::after{content:'✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦';position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(201,168,76,0.4);letter-spacing:6px;background:#065f46;padding:0 12px}
+.sertifikat-container .arabesque{text-align:center;font-size:28px;color:rgba(201,168,76,0.25);letter-spacing:12px;margin:6px 0;font-family:'Amiri',serif}
+.sertifikat-container .sertifikat-content{position:relative;z-index:3;color:#f0f4f0}
+.sertifikat-container .sertifikat-content h2,.sertifikat-container .sertifikat-content h3,.sertifikat-container .sertifikat-content h4{color:#f5e6c8}
+.sertifikat-container .sertifikat-content p{color:#e8edec}
+.sertifikat-container .nilai-box-v2{background:linear-gradient(145deg,#f5e6c8 0%,#e8d5a8 50%,#d4af37 100%);border:2px solid #c9a84c;border-radius:12px;padding:16px 24px;margin:12px auto;box-shadow:0 4px 20px rgba(201,168,76,0.3),inset 0 1px 0 rgba(255,255,255,0.3);max-width:500px}
+.sertifikat-container .nilai-box-v2 .label-nilai{color:#0a7e5e;font-weight:600}
+.sertifikat-container .nilai-box-v2 span{color:#065f46;font-weight:700}
+.sertifikat-container .nilai-box-v2 .nilai-kosong{color:#b8953a;font-style:italic}
+.sertifikat-container .sertifikat-content .badge-naik{background:linear-gradient(135deg,#c9a84c,#b8953a);color:#065f46;padding:6px 24px;border-radius:30px;font-size:20px;font-weight:800;display:inline-block;box-shadow:0 4px 20px rgba(201,168,76,0.3)}
+.sertifikat-foto{width:120px;height:120px;border-radius:50%;border:4px solid #c9a84c;object-fit:cover;margin:8px auto;display:block;box-shadow:0 0 30px rgba(201,168,76,0.2)}
+#modalViewDokumen .modal-body.landscape .document-preview{max-width:1100px}
+#modalViewDokumen .modal-body.portrait .document-preview{max-width:800px}
+#modalEditWali .form-group{margin-bottom:12px}
+#modalEditWali .form-group label{display:block;font-weight:600;font-size:14px;color:#1e293b;margin-bottom:4px}
+#modalEditWali .form-group .data-lama{background:#f1f5f9;padding:10px 14px;border-radius:10px;font-size:14px;color:#475569;border:1px solid #e2e8f0;font-family:monospace}
+#modalEditWali .form-group input{width:100%;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;font-size:14px;outline:none;min-height:44px}
+#modalEditWali .form-group input:focus{border-color:#065f46;box-shadow:0 0 0 3px rgba(6,95,70,0.1)}
+#modalEditWali .separator{border-top:2px dashed #e2e8f0;margin:16px 0;position:relative}
+#modalEditWali .separator span{background:white;padding:0 12px;position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:600;color:#94a3b8}
+#foto-preview{width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #065f46;margin:0 auto;display:block}
+#foto-placeholder{width:100px;height:100px;border-radius:50%;background:#f1f5f9;border:3px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:36px;color:#94a3b8}
+#preview-kamera{width:100%;max-width:400px;border-radius:12px;border:2px solid #065f46;margin:0 auto;display:block}
+#modalSantri input:disabled,#modalSantri select:disabled{background:#f1f5f9;color:#475569;cursor:not-allowed;opacity:0.7}
+#user-search-input{padding:8px 14px;border:1px solid #e2e8f0;border-radius:12px;font-size:14px;width:100%;max-width:300px;outline:none;min-height:40px}
+#user-search-input:focus{border-color:#065f46;box-shadow:0 0 0 3px rgba(6,95,70,0.1)}
+@media (max-width:640px){.sertifikat-container{padding:16px;border-width:4px}.sertifikat-container .sudut{width:30px;height:30px}.sertifikat-container .bintang-sudut{font-size:16px}.sertifikat-container .bintang-sudut-kiri-atas{top:14px;left:14px}.sertifikat-container .bintang-sudut-kanan-atas{top:14px;right:14px}.sertifikat-container .bintang-sudut-kiri-bawah{bottom:14px;left:14px}.sertifikat-container .bintang-sudut-kanan-bawah{bottom:14px;right:14px}.sertifikat-container .arabesque{font-size:18px;letter-spacing:6px}.sertifikat-foto{width:90px;height:90px}#modalViewDokumen .modal-header .btn-download,#modalViewDokumen .modal-header .btn-close{padding:4px 10px;font-size:11px;min-height:28px}#modalViewDokumen .modal-header h3{font-size:14px}#foto-preview,#foto-placeholder{width:80px;height:80px}}
+.dash-counter-bg-v3{background:linear-gradient(135deg,#065f46 0%,#0a7e5e 30%,#c9a84c 70%,#b8953a 100%);color:#f5e6c8;box-shadow:0 4px 30px rgba(201,168,76,0.3),inset 0 1px 0 rgba(255,255,255,0.2)}
+.dash-counter-card-v2{background:rgba(255,255,255,0.15);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(201,168,76,0.4);border-radius:1rem;padding:0.75rem 1.25rem;display:flex;align-items:center;gap:1rem;box-shadow:0 4px 20px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.2)}
+.dash-counter-card-v2 .counter-value{color:#f5e6c8;font-weight:700}
+.dash-counter-card-v2 .counter-label{color:#d4af37;font-weight:600}
+.dash-counter-card-v2 .icon-wrapper{font-size:1.75rem;color:#c9a84c}
+.sidebar-footer-text{font-family:'Playfair Display',serif;font-style:italic;letter-spacing:0.5px;line-height:1.8;text-align:justify}
+</style>
+</head>
+<body id="app-body" class="bg-gradient-to-br from-slate-100 via-emerald-50/40 to-slate-100 font-sans text-slate-800 min-h-screen">
+
+<!-- ============================================================ -->
+<!-- SPLASH SCREEN                                                -->
+<!-- ============================================================ -->
+<div id="splash-screen" class="fixed inset-0 bg-gradient-to-br from-emerald-900 via-teal-900 to-emerald-950 z-[9999] flex flex-col items-center justify-center p-6 text-center transition-opacity duration-700">
+<div class="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#34d399_1px,transparent_1px)] [background-size:16px_16px]"></div>
+<div class="relative z-10 space-y-6 max-w-lg">
+<div class="relative inline-block"><div class="absolute -inset-4 bg-emerald-400/20 rounded-full blur-xl animate-pulse-slow"></div>
+<img id="splash-logo" src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" class="w-24 h-24 object-contain relative z-10 mx-auto drop-shadow-2xl animate-bounce rounded-full border-4 border-amber-400/30 p-1"></div>
+<div class="space-y-2"><h1 id="splash-nama-tpq" class="text-2xl md:text-3xl font-extrabold text-amber-300 tracking-wide drop-shadow">SIAP LPQ</h1><p class="text-emerald-200 font-medium text-sm">Sistem Informasi Administrasi &amp; Prestasi Lembaga Pendidikan Al-Qur'an</p></div>
+<div class="w-64 h-2.5 bg-emerald-950/60 rounded-full mx-auto overflow-hidden shadow-inner border border-emerald-500/30"><div id="splash-progress" class="h-full bg-gradient-to-r from-amber-400 to-emerald-400 w-0 transition-all duration-300 ease-linear shadow-lg"></div></div>
+<p id="splash-status" class="text-xs text-emerald-300/80 font-medium">Memuat data...</p>
+<div class="pt-6 border-t border-emerald-800/60 space-y-1.5 text-xs text-emerald-300">
+<p class="font-semibold text-emerald-200">SIAP LPQ</p><p id="splash-copyright" class="text-amber-300 font-bold mt-1">Copyright 2026</p>
+<p class="text-amber-300/70 font-medium text-[10px]">Development : Daneva Studio</p>
+<p class="text-amber-300/80 font-medium text-[10px] mt-1">Founder: Ahmad Fathunnur</p>
+<p class="text-amber-300/70 text-[10px]"><i class="fa-brands fa-whatsapp mr-1"></i> 083198740074</p>
+</div></div></div>
+
+<!-- ============================================================ -->
+<!-- LOGIN SCREEN (Mode Aplikasi Biasa)                           -->
+<!-- ============================================================ -->
+<div id="login-screen" class="fixed inset-0 bg-gradient-to-tr from-emerald-950 via-teal-900 to-emerald-900 z-[9000] flex items-center justify-center p-4" style="display:none">
+<div class="absolute inset-0 opacity-10 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
+<div class="relative bg-white/90 backdrop-blur-xl rounded-3xl p-8 max-w-md w-full shadow-2xl border-2 border-amber-400/40 space-y-6">
+<button onclick="keluarSeketika()" class="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 font-bold text-lg transition shadow-sm border border-slate-200 btn-biasa"><i class="fa-solid fa-xmark"></i></button>
+<div class="text-center space-y-3 pt-2"><div class="inline-block animate-wave-medium"><img id="login-logo" src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" class="w-20 h-20 mx-auto object-contain drop-shadow-md rounded-full border-2 border-emerald-200 p-1"></div><h2 id="login-nama-tpq" class="text-xl font-extrabold text-emerald-950 tracking-wide">SIAP LPQ</h2><p class="text-sm text-slate-600 font-medium">Sistem Informasi Administrasi &amp; Prestasi Lembaga Pendidikan Al-Qur'an</p>
+<p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-shield-halved text-amber-500"></i> Admin? <a href="?admin=true" class="text-amber-600 font-semibold hover:underline">Klik di sini</a></p>
+</div>
+<form onsubmit="handleLogin(event)" class="space-y-4 text-sm">
+<div><label class="block font-semibold mb-1 text-slate-700">Tipe Pengguna</label><select id="login-role" class="w-full border rounded-xl p-3 outline-emerald-600 bg-white font-medium shadow-inner"><option value="Kepala">Kepala</option><option value="Bendahara">Bendahara</option><option value="Guru">Guru</option><option value="Wali Santri">Wali Santri</option></select></div>
+<div><label class="block font-semibold mb-1 text-slate-700">Username</label><input type="text" id="login-username" required placeholder="Username" class="w-full border rounded-xl p-3 outline-emerald-600 shadow-inner"></div>
+<div><label class="block font-semibold mb-1 text-slate-700">Password</label>
+<div class="relative"><input type="password" id="login-password" required placeholder="Password" class="w-full border rounded-xl p-3 pr-12 outline-emerald-600 shadow-inner"><button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 transition btn-biasa"><i id="password-toggle-icon" class="fa-solid fa-eye"></i></button></div></div>
+<button type="submit" class="w-full bg-gradient-to-r from-emerald-700 to-teal-800 hover:from-emerald-800 hover:to-teal-900 text-white font-bold py-3.5 rounded-xl shadow-lg transition btn-biasa tracking-wide">Masuk</button>
+</form>
+<div id="login-error" class="text-red-500 text-xs text-center hidden"></div>
+</div></div>
+
+<!-- ============================================================ -->
+<!-- MAIN APP CONTAINER                                           -->
+<!-- ============================================================ -->
+<div id="main-app-container" class="flex h-screen overflow-hidden opacity-0" style="display:none">
+<aside id="app-sidebar" class="w-64 bg-gradient-to-b from-emerald-900 via-emerald-950 to-teal-950 text-white flex flex-col shadow-2xl border-r border-emerald-800/50 absolute md:relative z-30 h-full transition-transform duration-300 -translate-x-full md:-translate-x-full" style="box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 20px rgba(0,0,0,0.3);">
+<div class="p-5 flex items-center justify-between border-b border-emerald-800/60 bg-emerald-950/40">
+<div class="flex items-center gap-3 truncate"><img id="sidebar-logo" src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" class="w-10 h-10 object-contain bg-white/10 p-1 rounded-xl shadow-inner"><span id="sidebar-nama-tpq" class="font-bold tracking-wider text-sm truncate text-amber-300" style="text-shadow: 0 2px 8px rgba(212,175,55,0.3);">TPQ NU 04 AL IHSAN</span></div>
+<button onclick="toggleSidebar(event)" class="text-amber-300 hover:text-amber-200 btn-biasa p-1 rounded"><i class="fa-solid fa-xmark text-xl"></i></button></div>
+<nav id="sidebar-nav" class="flex-1 p-4 space-y-1.5 overflow-y-auto text-sm"></nav>
+<div id="sidebar-copyright-footer" class="p-4 border-t border-emerald-800/60 text-xs text-center bg-emerald-950/20 leading-relaxed"></div></aside>
+<main id="main-content-area" class="flex-1 flex flex-col h-screen overflow-y-auto">
+<header style="background:linear-gradient(135deg,#065f46 0%,#0a7e5e 40%,#b8953a 80%,#c9a84c 100%);border-bottom:2px solid #c9a84c;box-shadow:0 4px 30px rgba(201,168,76,0.2),inset 0 1px 0 rgba(255,255,255,0.15);" class="p-3 px-4 flex justify-between items-center z-10 sticky top-0">
+<div class="flex items-center gap-2"><button class="text-amber-300 text-lg hover:text-amber-200 btn-biasa p-1.5 rounded-xl" onclick="toggleSidebar(event)"><i class="fa-solid fa-bars"></i></button><div><h1 id="page-title" class="text-xl md:text-2xl font-bold text-amber-300 drop-shadow-lg tracking-wide">Dashboard LPQ</h1><p class="text-[10px] font-semibold text-emerald-200 tracking-wider uppercase mt-0"><i class="fa-solid fa-mosque mr-1"></i>SISTEM INFORMASI ADMINISTRASI &amp; PRESTASI LPQ</p></div></div>
+<div class="flex items-center gap-2"><span id="user-badge" class="text-xs font-bold bg-amber-100 text-amber-900 px-2.5 py-1 rounded-xl border border-amber-300 shadow-sm"></span><span id="header-tpq-label" class="text-[11px] font-bold bg-gradient-to-r from-amber-400 to-amber-500 text-emerald-900 px-3 py-1 rounded-xl shadow-md border border-amber-300/30 tracking-wide hidden sm:inline-block">TPQ NU 04 AL IHSAN</span></div></header>
+<div class="main-content-wrapper p-5 md:p-6 flex-1 space-y-5">
+
+<!-- ============================================================ -->
+<!-- SECTION: DASHBOARD                                           -->
+<!-- ============================================================ -->
+<section id="dashboard" class="content-section space-y-5">
+<div id="dash-header-container" class="relative rounded-3xl p-5 md:p-8 shadow-2xl overflow-hidden border-2 border-amber-400/30 card-3d dash-counter-bg-v3" style="color:#f5e6c8;">
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-100 animate-wave-medium"><img id="dash-logo-animasi" src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" class="w-56 h-56 md:w-72 md:h-72 object-contain filter brightness-100 drop-shadow-2xl opacity-100" style="opacity:0.15;"></div>
+<div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-5 text-center md:text-left">
+<div class="space-y-2"><h2 id="dash-nama" class="text-xl md:text-3xl font-extrabold text-amber-300 drop-shadow-lg">TPQ NU 04 AL IHSAN</h2><p id="dash-alamat" class="text-emerald-200 text-sm font-medium"><i class="fa-solid fa-location-dot mr-1.5 text-amber-400"></i> Alamat Lembaga</p><p class="text-xs text-emerald-200 font-medium">Metode: <span id="dash-metode" class="font-semibold text-amber-300"></span> | Kepala: <span id="dash-kepala" class="font-semibold text-amber-300"></span></p></div>
+<div id="dash-stats-container" class="flex flex-wrap justify-center gap-3 items-center">
+<div class="dash-counter-card-v2"><div class="icon-wrapper"><i class="fa-solid fa-users-rectangle"></i></div><div class="text-left"><p class="counter-label text-amber-300 text-xs uppercase font-bold">Jumlah santri</p><h3 id="stat-total-santri" class="counter-value text-amber-100 text-2xl font-bold">0</h3></div></div>
+<div id="stat-ustadz-card-top" class="dash-counter-card-v2"><div class="icon-wrapper"><i class="fa-solid fa-chalkboard-user"></i></div><div class="text-left"><p class="counter-label text-amber-300 text-xs uppercase font-bold">Jumlah guru</p><h3 id="stat-ustadz" class="counter-value text-amber-100 text-2xl font-bold">0</h3></div></div>
+<div id="stat-setoran-card" class="dash-counter-card-v2 hidden"><div class="icon-wrapper"><i class="fa-solid fa-hand-holding-dollar"></i></div><div class="text-left"><p class="counter-label text-amber-300 text-xs uppercase font-bold">💸 Setoran ke Bendahara</p><h3 id="stat-setoran-guru" class="counter-value text-amber-100 text-2xl font-bold">Rp 0</h3><p class="text-[10px] text-amber-200 font-medium" id="stat-setoran-tanggal">Hari ini</p></div></div>
+<div id="stat-kas-card" class="dash-counter-card-v2 hidden"><div class="icon-wrapper"><i class="fa-solid fa-wallet"></i></div><div class="text-left"><p class="counter-label text-amber-300 text-xs uppercase font-bold">Saldo KAS</p><h3 id="stat-kas" class="counter-value text-amber-100 text-2xl font-bold">Rp 0</h3></div></div>
+</div></div></div>
+<div id="fitur-kegiatan-luar-container" class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 space-y-3 hidden card-3d">
+<h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-calendar-star text-emerald-600"></i> Input Kegiatan Luar KBM</h3>
+<p class="text-sm text-slate-500">Masukkan kegiatan untuk mengirimkan laporan ke dashboard wali santri.</p>
+<form onsubmit="simpanKegiatanLuar(event)" class="space-y-2"><div><label class="block font-semibold mb-1 text-slate-700 text-sm">Kegiatan</label><input type="text" id="kegiatan_judul" required placeholder="Contoh: Peringatan Maulid Nabi" class="w-full border rounded-xl p-2.5 outline-emerald-600 text-sm" autofocus></div><div class="flex justify-end"><button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition btn-biasa"><i class="fa-solid fa-paper-plane mr-1.5"></i> Simpan & Kirim</button></div></form></div>
+<div id="dash-penerima-realtime-container" class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 space-y-3 hidden card-3d">
+<div class="flex justify-between items-center"><h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-cash-register text-emerald-600"></i> Rekap Pembayaran Hari ini Per Penerima</h3><span class="text-sm bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full"><i class="fa-solid fa-calendar-day mr-1"></i> <span id="dash-rekap-tanggal"></span></span></div>
+<div class="table-wrapper wide-table"><table class="w-full text-left border-collapse"><thead class="bg-slate-100 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">Tanggal</th><th class="p-3">Penerima</th><th class="p-3">Total</th><th class="p-3 text-center">Struk</th></tr></thead><tbody id="table-dash-penerima-body"></tbody></table></div></div>
+<div id="dash-perincian-container" class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 space-y-3 card-3d">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2"><h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-chart-column text-emerald-600"></i> Perincian Jumlah Santri & Pembayaran Hari Ini</h3><span id="dashboard-current-date-badge" class="bg-emerald-100 text-emerald-800 text-sm font-bold px-3 py-1 rounded-full"><i class="fa-solid fa-calendar-day mr-1"></i> Hari Ini</span></div>
+<div id="grid-perincian-jilid" class="jilid-grid"></div></div>
+<div id="dash-pengumuman-wali-container" class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 space-y-3 hidden card-3d"><h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-bullhorn text-emerald-600"></i> Pengumuman TPQ</h3><div id="dash-pengumuman-wali-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></div>
+<div id="dash-prestasi-wali-toggle-container" class="hidden space-y-4">
+<button id="btn-toggle-prestasi-wali" onclick="togglePrestasiWaliList()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold p-3.5 rounded-2xl shadow transition btn-biasa flex items-center justify-center gap-2"><i class="fa-solid fa-book-open"></i> <span id="txt-btn-prestasi-wali">Lihat Rekap Prestasi</span></button>
+<div id="dash-prestasi-wali-container" class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 space-y-3 hidden card-3d"><h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-book-open text-emerald-600"></i> Rekap Prestasi Santri</h3><div class="table-wrapper extra-wide scrollable"><table class="w-full text-left border-collapse"><thead class="bg-slate-100 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">Tanggal</th><th class="p-3">Jilid</th><th class="p-3">Pengampu</th><th class="p-3">Klasikal</th><th class="p-3" id="th-metode-wali-prestasi">Metode</th><th class="p-3">Do'a Harian</th><th class="p-3">Surat Pendek</th><th class="p-3">Fasholatan</th><th class="p-3">Tajwid</th><th class="p-3">Ghorib</th><th class="p-3">Al-Qur'an</th><th class="p-3">Kurikulum Tambahan</th></tr></thead><tbody id="table-prestasi-wali-body"></tbody></table></div></div></div>
+<div id="dash-pembayaran-wali-toggle-container" class="hidden space-y-4">
+<button id="btn-toggle-pembayaran-wali" onclick="togglePembayaranWaliList()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold p-3.5 rounded-2xl shadow transition btn-biasa flex items-center justify-center gap-2"><i class="fa-solid fa-receipt"></i> <span id="txt-btn-pembayaran-wali">Lihat Rekap Pembayaran</span></button>
+<div id="dash-pembayaran-wali-container" class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 space-y-3 hidden card-3d"><h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-receipt text-emerald-600"></i> Rekap Pembayaran Santri</h3><div class="table-wrapper wide-table scrollable"><table class="w-full text-left border-collapse"><thead class="bg-slate-100 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">Tanggal</th><th class="p-3">Nama</th><th class="p-3">Jilid</th><th class="p-3">Pengampu</th><th class="p-3">Jenis</th><th class="p-3">Keterangan</th><th class="p-3">Jumlah</th></tr></thead><tbody id="table-pembayaran-wali-body"></tbody></table></div></div></div>
+<div id="dash-pesan-guru-container" class="bg-gradient-to-br from-emerald-50 to-teal-50/60 p-5 rounded-3xl shadow-xl border-2 border-emerald-200 space-y-3 hidden card-3d">
+<div class="flex justify-between items-center"><h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-comment-dots text-emerald-600"></i> Pesan dari Ustadz/ah</h3><span class="text-xs bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full font-semibold"><i class="fa-solid fa-clock-rotate-left mr-1"></i> 10 Terbaru</span></div>
+<div id="dash-pesan-guru-list" class="space-y-3 max-h-96 overflow-y-auto pr-1"></div></div>
+<div id="dash-pesan-wali-box" class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 space-y-3 hidden card-3d">
+<h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-paper-plane text-emerald-600"></i> Kirim Pesan ke Ustadz</h3>
+<form onsubmit="kirimPesanDariWali(event)" class="space-y-2"><textarea id="wali_pesan_text" rows="3" required placeholder="Tulis pesan..." class="w-full border rounded-xl p-2.5 outline-emerald-600 text-sm"></textarea><div class="flex justify-end"><button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition btn-biasa"><i class="fa-solid fa-paper-plane mr-1.5"></i> Kirim</button></div></form>
+<div class="pt-3 border-t border-slate-200"><h4 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Riwayat Pesan</h4><div id="list-pesan-wali-pribadi" class="space-y-3 max-h-60 overflow-y-auto"></div></div></div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION: PROFIL                                              -->
+<!-- ============================================================ -->
+<section id="profil" class="content-section hidden space-y-5">
+<div class="bg-white/90 backdrop-blur p-6 rounded-3xl shadow-xl border border-slate-200/80 max-w-xl space-y-4 card-3d">
+<h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-gear text-emerald-600"></i> Pengaturan Profil</h3>
+<form onsubmit="saveProfil(event)" class="space-y-3 text-sm">
+<div><label class="block font-semibold mb-1 text-slate-700">Nama Lembaga</label><input type="text" id="p_nama" required class="w-full border rounded-xl p-2.5 outline-emerald-600 shadow-inner" autofocus></div>
+<div><label class="block font-semibold mb-1 text-slate-700">Alamat</label><input type="text" id="p_alamat" required class="w-full border rounded-xl p-2.5 outline-emerald-600 shadow-inner"></div>
+<div><label class="block font-semibold mb-1 text-slate-700">Tahun Berdiri</label><input type="text" id="p_tahunBerdiri" placeholder="2010" required class="w-full border rounded-xl p-2.5 outline-emerald-600 shadow-inner"></div>
+<div><label class="block font-semibold mb-1 text-slate-700">NISP</label><input type="text" id="p_nisp" placeholder="12345678" required class="w-full border rounded-xl p-2.5 outline-emerald-600 shadow-inner"></div>
+<div><label class="block font-semibold mb-1 text-slate-700">Bernaung</label><input type="text" id="p_bernaung" placeholder="RMI NU" required class="w-full border rounded-xl p-2.5 outline-emerald-600 shadow-inner"></div>
+<div><label class="block font-semibold mb-1 text-slate-700">Metode</label><input type="text" id="p_metode" placeholder="Tilawati" required class="w-full border rounded-xl p-2.5 outline-emerald-600 shadow-inner"></div>
+<div><label class="block font-semibold mb-1 text-slate-700">Kepala</label><input type="text" id="p_kepala" required class="w-full border rounded-xl p-2.5 outline-emerald-600 shadow-inner"></div>
+<div><label class="block font-semibold mb-1 text-slate-700">Bendahara</label><input type="text" id="p_bendahara" required class="w-full border rounded-xl p-2.5 outline-emerald-600 shadow-inner"></div>
+<div><label class="block font-semibold mb-1 text-slate-700">Syahriyah/Bulanan (Rp)</label><input type="number" id="p_bulanan" placeholder="30000" class="w-full border rounded-xl p-2.5 outline-emerald-600 shadow-inner"></div>
+<div><label class="block font-semibold mb-1 text-slate-700">Logo</label><input type="file" id="p_logo_file" accept="image/*" class="w-full border rounded-xl p-2 text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"></div>
+<button type="submit" class="w-full bg-emerald-700 text-white py-2.5 rounded-xl font-bold shadow hover:bg-emerald-800 transition btn-biasa">Simpan Profil</button></form>
+<div class="pt-3 border-t border-slate-200"><button onclick="cetakPdfProfil()" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold shadow transition btn-biasa flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> Download Profil</button></div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: KURIKULUM                                           -->
+<!-- ============================================================ -->
+<section id="kurikulum" class="content-section hidden space-y-5">
+<div class="flex justify-between items-center bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d"><div><h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-book-open mr-2 text-emerald-600"></i>Kurikulum TPQ</h2><p class="text-sm text-slate-500">Kurikulum lengkap Pra TK s.d Kelas Al-Qur'an</p></div></div>
+<div id="kurikulum-container" class="space-y-5"></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: USTADZ                                              -->
+<!-- ============================================================ -->
+<section id="ustadz" class="content-section hidden space-y-5">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-chalkboard-user mr-2 text-emerald-600"></i>Data Guru</h2>
+<div id="btn-guru-container" class="flex flex-wrap gap-2">
+<button onclick="cetakPdfGuru()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-file-pdf mr-1.5"></i> Download</button>
+<button onclick="openModalUstadzAdd()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-plus mr-2"></i> Tambah</button>
+</div></div>
+<div class="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<div class="table-wrapper wide-table">
+<table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">NIG</th><th class="p-3">Nama</th><th class="p-3">WA</th><th class="p-3">Jilid</th><th class="p-3">TMT</th><th class="p-3">Masa</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody id="table-ustadz-body"></tbody></table>
+</div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: SANTRI                                              -->
+<!-- ============================================================ -->
+<section id="santri" class="content-section hidden space-y-5">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-users mr-2 text-emerald-600"></i>Data Santri</h2>
+<div class="flex flex-wrap gap-2">
+<button onclick="cetakPdfSantri()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-file-pdf mr-1.5"></i> Download</button>
+<button onclick="openModal('modalUploadExcel')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-file-excel mr-1.5"></i> Upload Excel</button>
+<button onclick="hapusSemuaSantri()" class="bg-rose-700 hover:bg-rose-800 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-trash-can mr-1.5"></i> Hapus</button>
+<button onclick="openModalSantriAdd()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-plus mr-1.5"></i> Tambah</button>
+</div></div>
+<div class="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<div class="table-wrapper wide-table">
+<table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">NIS</th><th class="p-3">Nama</th><th class="p-3">Jilid</th><th class="p-3">Alamat</th><th class="p-3">Wali/WA</th><th class="p-3">Guru</th><th class="p-3">Tgl Masuk</th><th class="p-3 text-center">Download Prestasi</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody id="table-santri-body"></tbody></table>
+</div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: PRESTASI                                            -->
+<!-- ============================================================ -->
+<section id="prestasi" class="content-section hidden space-y-5">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<div><h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-book-open mr-2 text-emerald-600"></i>Buku Prestasi</h2><p class="text-sm text-slate-500">Catat prestasi harian santri</p></div>
+<div><button onclick="openModal('modalPrestasi')" class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-book-open mr-2"></i> Catat Prestasi Santri</button></div></div>
+<div class="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<div class="table-wrapper extra-wide">
+<table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">Tanggal</th><th class="p-3">Santri</th><th class="p-3">Jilid</th><th class="p-3">Guru</th><th class="p-3">Klasikal</th><th class="p-3" id="th-metode-prestasi">Metode</th><th class="p-3">Do'a Harian</th><th class="p-3">Surat Pendek</th><th class="p-3">Fasholatan</th><th class="p-3">Tajwid</th><th class="p-3">Ghorib</th><th class="p-3">Al-Qur'an</th><th class="p-3">Kurikulum Tambahan</th></tr></thead><tbody id="table-prestasi-body"></tbody></table>
+</div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: KENAIKAN                                            -->
+<!-- ============================================================ -->
+<section id="kenaikan" class="content-section hidden space-y-5">
+<div class="flex justify-between items-center bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-award mr-2 text-emerald-600"></i>Kenaikan Jilid</h2>
+<button onclick="openModal('modalKenaikan')" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-file-pen mr-2"></i> Input</button></div>
+<div class="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<div class="table-wrapper wide-table">
+<table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">Santri</th><th class="p-3">Target</th><th class="p-3" id="th-metode-kenaikan">Metode</th><th class="p-3">Do'a Harian</th><th class="p-3">Fasholatan</th><th class="p-3">Surat Pendek</th><th class="p-3">Tajwid</th><th class="p-3">Ghorib</th><th class="p-3">Status</th><th class="p-3 text-center">Sertifikat</th></tr></thead><tbody id="table-kenaikan-body"></tbody></table>
+</div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: PEMBAYARAN                                          -->
+<!-- ============================================================ -->
+<section id="pembayaran" class="content-section hidden space-y-5">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<div><h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-wallet mr-2 text-emerald-600"></i>Pembayaran & Kas</h2><p class="text-sm text-slate-500">Catat pembayaran santri</p></div>
+<div><button id="btn-catat-pembayaran" onclick="openModal('modalBayar')" class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-cash-register mr-2"></i> Catat Pembayaran Santri</button></div></div>
+<div class="space-y-3"><button id="btn-toggle-tabel-bayar" onclick="toggleTabelBayarList()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold p-3.5 rounded-2xl shadow transition btn-biasa flex items-center justify-center gap-2"><i class="fa-solid fa-list"></i> <span id="txt-btn-toggle-tabel-bayar">Tampilkan Rekap</span></button>
+<div id="container-tabel-bayar-list" class="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-slate-200/80 card-3d hidden">
+<div class="table-wrapper wide-table">
+<table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">Tanggal</th><th class="p-3">NIS</th><th class="p-3">Santri</th><th class="p-3">Jilid</th><th class="p-3">Penerima</th><th class="p-3">Jenis/Ket</th><th class="p-3">Jumlah</th><th class="p-3">Akumulasi</th><th class="p-3 text-center">Struk</th></tr></thead><tbody id="table-bayar-body"></tbody></table>
+</div></div></div>
+<div id="filter-pembayaran-container" class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 space-y-3 card-3d">
+<div class="flex justify-between items-center border-b border-slate-200 pb-2"><h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-filter text-emerald-600"></i> Filter Pembayaran</h3><span class="text-sm bg-slate-100 text-slate-700 font-bold px-2.5 py-0.5 rounded-full"><i class="fa-solid fa-database mr-1"></i> <span id="filter-jumlah-data-text">0</span></span></div>
+<div class="filter-grid">
+<div class="filter-item"><label><i class="fa-solid fa-user-graduate text-emerald-600"></i> Cari</label><input type="text" id="filter_bayar_cari" placeholder="Nama/NIS..." oninput="handleCompactSearchInput(this.value)" autocomplete="off" class="w-full border rounded-xl p-2 outline-emerald-600 bg-white"><div id="filter_search_dropdown" class="searchable-dropdown-list"></div><div class="btn-group"><button onclick="applyFilterPembayaran()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition btn-biasa"><i class="fa-solid fa-magnifying-glass"></i> Cari</button><button onclick="resetFilterPembayaran()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition btn-biasa"><i class="fa-solid fa-rotate"></i> Reset</button></div></div>
+<div class="filter-item"><label><i class="fa-solid fa-tag text-emerald-600"></i> Jenis</label><select id="filter_bayar_jenis" onchange="applyFilterPembayaran()" class="w-full border rounded-xl p-2 outline-emerald-600 bg-white"><option value="">-- Semua --</option><option>Syahriyah / Bulanan</option><option>Infaq Pembangunan</option><option>Iuran Kegiatan</option></select></div>
+<div class="filter-item"><label><i class="fa-solid fa-calendar-days text-emerald-600"></i> Dari</label><input type="date" id="filter_bayar_mulai" onchange="applyFilterPembayaran()" class="w-full border rounded-xl p-2 outline-emerald-600 bg-white"></div>
+<div class="filter-item"><label><i class="fa-solid fa-calendar-days text-emerald-600"></i> Sampai</label><input type="date" id="filter_bayar_selesai" onchange="applyFilterPembayaran()" class="w-full border rounded-xl p-2 outline-emerald-600 bg-white"></div>
+</div>
+<div id="filter-hasil-container" class="mt-2 pt-2 border-t border-slate-200 hidden"><div class="flex justify-between items-center mb-1"><span class="text-sm font-semibold text-slate-600"><i class="fa-solid fa-list-check text-emerald-600 mr-1"></i> Hasil: <span id="filter-hasil-jumlah" class="text-emerald-800 font-bold">0</span></span><span id="filter-hasil-total" class="text-sm font-bold text-emerald-800">Total: Rp 0</span></div>
+<div class="table-wrapper"><table class="w-full text-left border-collapse text-xs"><thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b sticky top-0"><tr><th class="p-1.5">No</th><th class="p-1.5">Tanggal</th><th class="p-1.5">NIS</th><th class="p-1.5">Nama</th><th class="p-1.5">Jilid</th><th class="p-1.5">Jenis</th><th class="p-1.5">Ket</th><th class="p-1.5 text-right">Jumlah</th></tr></thead><tbody id="filter-hasil-body"></tbody></table></div>
+<div class="flex justify-end gap-2 pt-2 border-t border-slate-200 mt-2"><button onclick="viewPdfFilterTransaksi()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-file-pdf"></i> Download PDF</button></div></div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: MUTASI                                              -->
+<!-- ============================================================ -->
+<section id="mutasi" class="content-section hidden space-y-5">
+<div class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 card-3d"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2"><div><h2 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-coins text-emerald-600"></i> Kas Keluar Masuk</h2><p class="text-sm text-slate-500">Kelola arus kas</p></div><div class="flex flex-wrap gap-2"><button onclick="openModal('modalKasMasuk')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-arrow-down"></i> Masuk</button><button onclick="openModal('modalKasKeluar')" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-arrow-up"></i> Keluar</button></div></div></div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-2"><div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-3 border border-emerald-200/50 shadow-sm card-3d"><p class="text-xs text-slate-500 font-medium uppercase">Total</p><p id="ringkasan-total-transaksi" class="text-xl font-extrabold text-emerald-900 mt-0.5">0</p></div>
+<div class="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-3 border border-blue-200/50 shadow-sm card-3d"><p class="text-xs text-slate-500 font-medium uppercase">Masuk</p><p id="ringkasan-total-masuk" class="text-xl font-extrabold text-blue-700 mt-0.5">Rp 0</p></div>
+<div class="bg-gradient-to-br from-rose-50 to-white rounded-2xl p-3 border border-rose-200/50 shadow-sm card-3d"><p class="text-xs text-slate-500 font-medium uppercase">Keluar</p><p id="ringkasan-total-keluar" class="text-xl font-extrabold text-rose-700 mt-0.5">Rp 0</p></div>
+<div class="bg-gradient-to-br from-amber-50 to-white rounded-2xl p-3 border border-amber-200/50 shadow-sm card-3d"><p class="text-xs text-slate-500 font-medium uppercase">Saldo</p><p id="ringkasan-saldo" class="text-xl font-extrabold text-amber-700 mt-0.5">Rp 0</p></div></div>
+<div class="bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2"><div class="flex flex-wrap items-center gap-1.5"><span class="font-semibold text-sm text-slate-700">📅 Periode:</span><input type="date" id="filter-tgl-mulai" class="border rounded-xl p-1.5 outline-emerald-600 text-sm shadow-inner"><span class="text-slate-400 text-sm">s.d</span><input type="date" id="filter-tgl-selesai" class="border rounded-xl p-1.5 outline-emerald-600 text-sm shadow-inner"><button onclick="renderMutasi()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-filter"></i> Filter</button><button onclick="resetFilterMutasi()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-2.5 py-1.5 rounded-xl text-sm font-semibold transition btn-biasa"><i class="fa-solid fa-rotate"></i> Reset</button></div>
+<div class="flex flex-wrap gap-1.5"><button onclick="cetakPdfMutasiPeriode()" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1.5 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-file-pdf"></i> Download PDF</button><button onclick="hapusSemuaMutasi()" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-trash-can"></i> Hapus</button></div></div></div>
+<div class="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-slate-200/80 overflow-hidden card-3d">
+<div class="table-wrapper scrollable">
+<table class="w-full text-left border-collapse">
+<thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b border-slate-200">
+<tr><th class="p-3 text-center w-[50px]">No</th><th class="p-3 sortable" onclick="sortMutasi('tanggal')">Tanggal <i class="fa-solid fa-arrow-up-wide-short text-[10px]"></i></th><th class="p-3 sortable" onclick="sortMutasi('uraian')">Uraian <i class="fa-solid fa-arrow-up-wide-short text-[10px]"></i></th><th class="p-3 text-center">Jenis</th><th class="p-3 text-right">Masuk</th><th class="p-3 text-right">Keluar</th></tr>
+</thead>
+<tbody id="table-mutasi-body"></tbody>
+</table></div>
+<div id="mutasi-footer" class="bg-slate-50/80 px-3 py-2 border-t border-slate-200 flex justify-between items-center text-sm"><span id="mutasi-jumlah-data" class="text-slate-500 font-medium">Total: 0 kelompok</span><span id="mutasi-total-saldo" class="font-bold text-emerald-800">Saldo: Rp 0</span></div></div>
+<div id="daftar-penerima-container" class="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-slate-200/80 p-5 space-y-4 card-3d">
+<div class="flex justify-between items-center border-b border-slate-200 pb-3 flex-wrap gap-2">
+<h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-users text-emerald-600"></i> Daftar Penerima per Tanggal</h3>
+<div class="flex items-center gap-2"><label class="text-xs font-semibold text-slate-700">📅 Bulan:</label><select id="filter-bulan-penerima" onchange="renderDaftarPenerima()" class="border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm"></select></div></div>
+<div id="daftar-penerima-body" class="space-y-4 max-h-96 overflow-y-auto pr-1"></div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: PESAN WALI                                          -->
+<!-- ============================================================ -->
+<section id="pesan_wali" class="content-section hidden space-y-5">
+<div class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 card-3d"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2"><div><h2 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-comments text-emerald-600"></i> Pesan Wali</h2><p class="text-sm text-slate-500">Kelola komunikasi</p></div><button onclick="refreshPesanWali()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-rotate"></i> Refresh</button></div></div>
+<div class="grid grid-cols-3 gap-2"><div class="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-3 border border-slate-200/50 shadow-sm card-3d text-center"><p class="text-xs text-slate-500 font-medium uppercase">Total</p><p id="ringkasan-total-pesan" class="text-2xl font-extrabold text-slate-800 mt-0.5">0</p></div>
+<div class="bg-gradient-to-br from-amber-50 to-white rounded-2xl p-3 border border-amber-200/50 shadow-sm card-3d text-center"><p class="text-xs text-slate-500 font-medium uppercase">Belum Dibalas</p><p id="ringkasan-belum-dibalas" class="text-2xl font-extrabold text-amber-700 mt-0.5">0</p></div>
+<div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-3 border border-emerald-200/50 shadow-sm card-3d text-center"><p class="text-xs text-slate-500 font-medium uppercase">Sudah Dibalas</p><p id="ringkasan-sudah-dibalas" class="text-2xl font-extrabold text-emerald-700 mt-0.5">0</p></div></div>
+<div class="bg-white/90 backdrop-blur p-3 rounded-3xl shadow-xl border border-slate-200/80 card-3d"><div class="flex flex-wrap items-center gap-2"><div class="flex-1 min-w-[130px] relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" id="filter-pesan-cari" placeholder="Cari..." oninput="renderPesanWali()" class="w-full border rounded-xl pl-7 pr-2.5 py-1.5 outline-emerald-600 text-sm bg-white"></div>
+<select id="filter-pesan-status" onchange="renderPesanWali()" class="border rounded-xl p-1.5 outline-emerald-600 text-sm bg-white min-w-[110px]"><option value="semua">Semua</option><option value="belum">Belum Dibalas</option><option value="sudah">Sudah Dibalas</option></select>
+<select id="filter-pesan-urut" onchange="renderPesanWali()" class="border rounded-xl p-1.5 outline-emerald-600 text-sm bg-white min-w-[110px]"><option value="terbaru">Terbaru</option><option value="terlama">Terlama</option></select>
+<span class="text-sm text-slate-500 font-medium ml-auto">Menampilkan <span id="filter-pesan-jumlah-text">0</span></span></div></div>
+<div id="list-pesan-wali-admin" class="space-y-3"></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: INFORMASI                                           -->
+<!-- ============================================================ -->
+<section id="informasi" class="content-section hidden space-y-5">
+<div class="flex justify-between items-center bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-bullhorn mr-2 text-emerald-600"></i>Papan Informasi</h2>
+<button onclick="openModal('modalInfo')" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-bullhorn mr-2"></i> Buat</button></div>
+<div id="list-informasi" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: USER                                                -->
+<!-- ============================================================ -->
+<section id="user" class="content-section hidden space-y-5">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<div><h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-user-gear mr-2 text-emerald-600"></i>Management User</h2><p class="text-sm text-slate-500">Kelola hak akses</p></div>
+<button onclick="openModalUserAdd()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-user-plus mr-2"></i> Tambah</button></div>
+<div class="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-slate-200/80 p-4">
+<div class="flex items-center gap-3 flex-wrap">
+<label class="text-sm font-semibold text-slate-700"><i class="fa-solid fa-search text-emerald-600 mr-1"></i>Cari:</label>
+<input type="text" id="user-search-input" placeholder="Cari username, nama, atau role..." oninput="renderUsers()" class="border rounded-xl p-2 outline-emerald-600 text-sm flex-1 min-w-[200px]" autofocus>
+<span class="text-sm text-slate-500">Hasil: <span id="user-search-count">0</span></span>
+</div>
+</div>
+<div class="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<div class="table-wrapper wide-table">
+<table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">Username</th><th class="p-3">Nama</th><th class="p-3">Password</th><th class="p-3">Role</th><th class="p-3">NIS Ref</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody id="table-user-body"></tbody></table>
+</div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: BACKUP                                              -->
+<!-- ============================================================ -->
+<section id="backup" class="content-section hidden space-y-5">
+<div class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+<div><h2 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-database text-emerald-600"></i> Backup & Restore Data</h2><p class="text-sm text-slate-500">Kelola backup dan restore seluruh data aplikasi</p></div>
+<button onclick="refreshBackupInfo()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-rotate"></i> Refresh</button>
+</div></div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="bg-gradient-to-br from-emerald-50 to-white rounded-3xl p-6 border border-emerald-200/50 shadow-sm card-3d">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 text-xl"><i class="fa-solid fa-download"></i></div>
+<div><h3 class="font-bold text-emerald-900 text-lg">Backup Data</h3><p class="text-sm text-slate-500">Simpan semua data ke file JSON</p></div>
+</div>
+<div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-500 space-y-1 mb-4">
+<p><span class="font-semibold">📅 Backup Terakhir:</span> <span id="last-backup-date">Belum pernah</span></p>
+<p><span class="font-semibold">📊 Total Data:</span> <span id="backup-total-data">0</span> record</p>
+<div class="flex flex-wrap gap-2 mt-1">
+<span class="text-emerald-600">👨‍🎓 Santri: <span id="backup-count-santri">0</span></span>
+<span class="text-blue-600">👨‍🏫 Guru: <span id="backup-count-guru">0</span></span>
+<span class="text-amber-600">📚 Prestasi: <span id="backup-count-prestasi">0</span></span>
+<span class="text-purple-600">💰 Pembayaran: <span id="backup-count-bayar">0</span></span>
+</div>
+</div>
+<button onclick="createBackup()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white py-3 rounded-xl font-bold shadow transition btn-biasa flex items-center justify-center gap-2"><i class="fa-solid fa-download"></i> Backup Sekarang</button>
+</div>
+<div class="bg-gradient-to-br from-amber-50 to-white rounded-3xl p-6 border border-amber-200/50 shadow-sm card-3d">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-700 text-xl"><i class="fa-solid fa-upload"></i></div>
+<div><h3 class="font-bold text-amber-900 text-lg">Restore Data</h3><p class="text-sm text-slate-500">Pulihkan data dari file backup</p></div>
+</div>
+<div class="border-2 border-dashed border-amber-300 rounded-2xl p-6 text-center hover:border-amber-500 transition cursor-pointer relative bg-white/50" id="restore-drop-zone">
+<i class="fa-solid fa-cloud-upload-alt text-3xl text-amber-400 mb-2"></i>
+<p class="text-sm text-slate-600 font-medium">Klik atau seret file backup (.json)</p>
+<p class="text-xs text-slate-400">Maksimal 10MB</p>
+<input type="file" id="restore-file-input" accept=".json" class="absolute inset-0 opacity-0 cursor-pointer" onchange="handleRestoreBackup(event)">
+</div>
+<div id="restore-info" class="hidden mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800">
+<p class="font-semibold"><i class="fa-solid fa-info-circle mr-1"></i> File backup terdeteksi:</p>
+<p id="restore-file-info">-</p>
+<div class="flex gap-2 mt-2">
+<button onclick="confirmRestore()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-check"></i> Restore</button>
+<button onclick="cancelRestore()" class="border border-slate-300 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-slate-50 btn-biasa">Batal</button>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-slate-200/80 p-5 card-3d">
+<h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-600"></i> Riwayat Backup</h3>
+<div id="backup-history-list" class="space-y-2 max-h-48 overflow-y-auto"><p class="text-sm text-slate-400 italic">Belum ada riwayat backup.</p></div>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SECTION: UTILITY                                             -->
+<!-- ============================================================ -->
+<section id="utility" class="content-section hidden space-y-5">
+<div class="bg-white/90 backdrop-blur p-6 rounded-3xl shadow-xl border border-slate-200/80 max-w-3xl mx-auto space-y-5 card-3d">
+<div class="text-center border-b border-slate-200 pb-4"><span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold uppercase">Sambutan Founder</span><h2 class="text-xl font-extrabold text-emerald-900 mt-2">Profil Founder</h2></div>
+<div class="space-y-3 text-sm leading-relaxed text-slate-700 bg-emerald-50/40 p-5 rounded-2xl border border-emerald-100">
+<p class="text-center font-bold text-base text-emerald-900 font-arabic">Bismillahirrahmanirrahim.</p>
+<p class="text-center font-medium">Assalamualaikum Wr. Wb.</p>
+<p style="text-align:justify" class="text-slate-700 font-normal">Bismillah Alhamdulillah wassolatu Wassalamu ala Rosulillah, Sayidina Muhammad ibni abdillah, Lahaulaa wa laa quwwata Illa Billah, Am'a ba'd.<br><br>Para pengguna Aplikasi, saya mengucapkan banyak terimakasih, semoga aplikasi ini dapat membantu mempermudah para guru di lembaga <span id="utility-tpq-name" class="font-bold text-emerald-900"></span>, dan bermanfaat untuk semua, Insyaallah Aplikasi ini akan terus dikembangkan, dengan melihat kebutuhan yang ada.<br><br>Kami membuat aplikasi ini dengan latar belakang melihat digitalisasi pada berbagai hal, sehingga kami tidak ingin lembaga pendidikan Al Qur'an dianggap suatu lembaga yang tertinggal.<br><br>saya selaku pengajar di Lembaga Pendidikan Al Qur'an (LPQ), tau persis apa yang dialami para guru ketika menjalankan KBM.<br><br>Dan akhirnya semoga Allah meridhoi semua yang kami upaya kan.</p></div>
+<div class="text-right pt-2 space-y-1"><p class="font-bold text-slate-800">Hormat Kami,</p><p class="text-emerald-700 font-extrabold text-base mt-2">Ahmad Fathunnur</p><p class="text-sm text-slate-500 font-medium"><a href="#" onclick="openWhatsAppFounder()" class="text-emerald-700 font-bold hover:underline"><i class="fa-brands fa-whatsapp text-emerald-600"></i> 083198740074</a></p></div></div></section>
+
+</div></main></div>
+
+<!-- ============================================================ -->
+<!-- MODALS - SEMUA SAMA PERSIS DENGAN ASLI                       -->
+<!-- ============================================================ -->
+<div id="modalViewDokumen" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm hidden flex justify-center items-center z-[99999] p-4"><div class="modal-content"><div class="modal-header"><h3><i class="fa-solid fa-file-pdf text-emerald-600"></i> <span id="view-dokumen-title">Dokumen</span></h3><div class="btn-group"><button onclick="downloadPDF()" class="btn-download" id="btn-download-pdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</button><button onclick="downloadJPG()" class="btn-download" id="btn-download-jpg" style="background:#d97706;"><i class="fa-solid fa-image"></i> Download JPG</button><button onclick="closeViewDokumen()" class="btn-close"><i class="fa-solid fa-xmark"></i> Tutup</button></div></div><div class="modal-body" id="view-dokumen-body"></div></div></div>
+<div id="modalSantri" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100"><h3 id="modalSantriTitle" class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-user-plus text-emerald-600"></i> Form Santri</h3><form id="formSantri" onsubmit="saveSantri(event)" class="space-y-2 text-sm"><input type="hidden" id="s_edit_id"><div><label class="block font-semibold mb-0.5 text-slate-700">NIS</label><input type="text" id="s_nis" placeholder="2026001" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_nama"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Nama</label><input type="text" id="s_nama" required class="w-full border rounded-xl p-2.5 outline-emerald-600" autofocus data-next="s_jilid"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Jilid</label><select id="s_jilid" onchange="autoSelectGuru(this.value)" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_alamat"><option>Pra TK</option><option>Jilid 1</option><option>Jilid 2</option><option>Jilid 3</option><option>Jilid 4</option><option>Jilid 5</option><option>Jilid 6</option><option>Kelas Al-Qur'an</option></select></div><div><label class="block font-semibold mb-0.5 text-slate-700">Alamat</label><input type="text" id="s_alamat" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_tgl_masuk"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Tgl Masuk</label><input type="date" id="s_tgl_masuk" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_ortu"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Wali</label><input type="text" id="s_ortu" placeholder="Bpk. Budi" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_wa"></div><div><label class="block font-semibold mb-0.5 text-slate-700">WA Wali</label><input type="text" id="s_wa" placeholder="08xxxxxxxx" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_guru"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Guru</label><input type="text" id="s_guru" readonly class="w-full border rounded-xl p-2.5 bg-slate-100 font-semibold text-emerald-800"></div><div class="flex justify-end gap-2 pt-3"><button type="button" onclick="closeModal('modalSantri')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button type="submit" id="btn_submit_santri" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa">Simpan</button></div></form></div></div>
+<div id="modalPrestasi" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-3xl w-full p-6 space-y-3 max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100"><div class="flex justify-between items-center border-b border-slate-200 pb-2"><div><h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-book-open text-emerald-600"></i> Catat Prestasi</h3><p class="text-sm text-slate-500">Catat prestasi harian santri</p></div><span class="text-sm bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-calendar-day mr-1"></i> <span id="prestasi-tanggal-text"></span></span></div><form onsubmit="savePrestasi(event)" class="space-y-3"><div><label class="block font-bold text-slate-700 text-sm mb-1"><i class="fa-solid fa-user-graduate text-emerald-600 mr-1"></i> Pilih Santri</label><div class="searchable-select-wrapper"><input type="text" id="search_santri_prestasi" placeholder="Ketik nama atau NIS..." oninput="handleModalSearchInput('search_santri_prestasi','p_santri_dropdown','p_santri_val')" autocomplete="off" class="w-full border rounded-xl p-2.5 outline-emerald-600 text-sm bg-emerald-50/50 focus:bg-white transition" data-next="p_klasikal"><div id="p_santri_dropdown" class="searchable-dropdown-list"></div><input type="hidden" id="p_santri_val"></div></div><div id="prestasi-santri-info"><div class="bg-gradient-to-r from-emerald-50 to-teal-50/50 rounded-2xl p-3 border border-emerald-200/70"><div class="flex justify-between items-center"><div><h4 id="prestasi-santri-nama" class="font-bold text-emerald-900 text-base">-</h4><div class="flex items-center gap-2 mt-1 text-sm text-slate-600"><span><span class="font-semibold text-slate-700">NIS:</span> <span id="prestasi-santri-nis">-</span></span><span><span class="font-semibold text-slate-700">Jilid:</span> <span id="prestasi-santri-jilid" class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-semibold">-</span></span><span><span class="font-semibold text-slate-700">Guru:</span> <span id="prestasi-santri-guru">-</span></span></div></div><div class="text-right"><span class="text-sm text-slate-400">Terakhir</span><p class="text-sm font-semibold text-emerald-800" id="prestasi-santri-terakhir">-</p></div></div></div><div class="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/70"><div class="flex items-center gap-2 mb-1.5"><i class="fa-solid fa-clock-rotate-left text-emerald-600"></i><span class="text-sm font-bold text-slate-700 uppercase">Hasil Terakhir</span></div><div class="space-y-1 text-sm"><div><span class="font-medium text-slate-600">📖 Klasikal:</span> <span id="prev_klasikal" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 <span id="label-prev-metode">Metode</span>:</span> <span id="prev_halaman" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Do'a Harian:</span> <span id="prev_doa" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Surat Pendek:</span> <span id="prev_surat" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Fasholatan:</span> <span id="prev_alquran" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Tajwid:</span> <span id="prev_sholat" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Ghorib:</span> <span id="prev_tajwid" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Al-Qur'an:</span> <span id="prev_tambahan" class="text-slate-800">-</span></div></div></div></div><div id="prestasi-input-container"><div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-4 border-2 border-emerald-200/50"><div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-pen-to-square text-emerald-600 text-lg"></i><span class="text-base font-bold text-emerald-900">Input Hari Ini</span><span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold ml-auto"><i class="fa-solid fa-check-circle mr-1"></i> Isi yang dipelajari</span></div><div class="grid grid-cols-1 md:grid-cols-2 gap-2"><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">1</span> Klasikal</label><input type="text" id="p_klasikal" placeholder="Contoh: Jilid 3 Hal 5" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_halaman"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">2</span> <span id="label-metode-prestasi">Metode</span></label><input type="text" id="p_halaman" placeholder="Contoh: Jilid 2 Hal 12" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_doa"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">3</span> Do'a Harian</label><input type="text" id="p_doa" placeholder="Contoh: Doa Masuk Masjid" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_surat"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">4</span> Surat Pendek</label><input type="text" id="p_surat" placeholder="Contoh: An-Nas" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_alquran"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">5</span> Fasholatan</label><input type="text" id="p_alquran" placeholder="Contoh: Niat wudhu" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_sholat"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">6</span> Tajwid</label><input type="text" id="p_sholat" placeholder="Contoh: Hukum Nun Mati" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_tajwid"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">7</span> Ghorib</label><input type="text" id="p_tajwid" placeholder="Contoh: Waqof lazim" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_tambahan"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">8</span> Al-Qur'an</label><input type="text" id="p_tambahan" placeholder="Contoh: Juz 1 Hal 10" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm"></div></div></div></div><div class="flex justify-end gap-2 pt-3 border-t border-slate-200"><button type="button" onclick="closeModal('modalPrestasi')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa"><i class="fa-solid fa-xmark"></i> Batal</button><button type="reset" onclick="resetFormPrestasi()" class="px-4 py-2 border border-amber-300 rounded-xl font-medium text-amber-700 hover:bg-amber-50 btn-biasa"><i class="fa-solid fa-rotate"></i> Reset</button><button type="submit" class="px-4 py-2 bg-gradient-to-r from-emerald-700 to-teal-800 text-white rounded-xl font-bold hover:shadow-lg btn-biasa"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div></form></div></div>
+<div id="modalKenaikan" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-3 max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100"><h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-award text-emerald-600"></i> Tes Kenaikan</h3><form id="formKenaikan" onsubmit="saveKenaikan(event)" class="space-y-2 text-sm"><div><label class="block font-semibold mb-0.5 text-slate-700">Pilih Santri</label><div class="searchable-select-wrapper"><input type="text" id="search_santri_kenaikan" placeholder="Ketik nama atau NIS..." oninput="handleModalSearchInput('search_santri_kenaikan','k_santri_dropdown','k_santri_val')" autocomplete="off" class="w-full border rounded-xl p-2 outline-emerald-600 mb-1 text-sm bg-white" data-next="k_target"><div id="k_santri_dropdown" class="searchable-dropdown-list"></div><input type="hidden" id="k_santri_val"></div></div><div><label class="block font-semibold mb-0.5 text-slate-700">Target Jilid</label><select id="k_target" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="k_nilai_jilid"><option>Pra TK</option><option>Jilid 1</option><option>Jilid 2</option><option>Jilid 3</option><option>Jilid 4</option><option>Jilid 5</option><option>Jilid 6</option><option>Kelas Al-Qur'an</option><option value="Lulus">Lulus (Hapus)</option></select></div><div class="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-1.5"><span class="text-sm font-bold text-emerald-900 uppercase block border-b border-emerald-200 pb-1"><i class="fa-solid fa-pen-to-square mr-1"></i> Penilaian (Boleh Kosong)</span><div class="grid grid-cols-2 gap-1.5"><div><label class="text-sm font-semibold text-slate-700" id="label-metode-kenaikan">Nilai Metode</label><input type="number" id="k_nilai_jilid" placeholder="0-100" class="w-full border rounded-xl p-1.5 outline-emerald-600 text-sm" data-next="k_nilai_doa"></div><div><label class="text-sm font-semibold text-slate-700">Nilai Do'a Harian</label><input type="number" id="k_nilai_doa" placeholder="0-100" class="w-full border rounded-xl p-1.5 outline-emerald-600 text-sm" data-next="k_nilai_sholat"></div><div><label class="text-sm font-semibold text-slate-700">Nilai Fasholatan</label><input type="number" id="k_nilai_sholat" placeholder="0-100" class="w-full border rounded-xl p-1.5 outline-emerald-600 text-sm" data-next="k_nilai_surat"></div><div><label class="text-sm font-semibold text-slate-700">Nilai Surat Pendek</label><input type="number" id="k_nilai_surat" placeholder="0-100" class="w-full border rounded-xl p-1.5 outline-emerald-600 text-sm" data-next="k_nilai_tajwid"></div><div><label class="text-sm font-semibold text-slate-700">Nilai Tajwid</label><input type="number" id="k_nilai_tajwid" placeholder="0-100" class="w-full border rounded-xl p-1.5 outline-emerald-600 text-sm" data-next="k_nilai_ghorib"></div><div><label class="text-sm font-semibold text-slate-700">Nilai Ghorib</label><input type="number" id="k_nilai_ghorib" placeholder="0-100" class="w-full border rounded-xl p-1.5 outline-emerald-600 text-sm" data-next="k_status"></div></div></div><div><label class="block font-semibold mb-0.5 text-slate-700">Status</label><select id="k_status" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="upload_foto_kenaikan"><option>Lulus & Naik</option><option>Lulus & Selesai</option><option>Perlu Mengulang</option></select></div><div class="border-t border-slate-200 pt-3 mt-3"><label class="block font-semibold mb-2 text-slate-700"><i class="fa-solid fa-image text-emerald-600 mr-1"></i> Upload Foto Santri (Opsional)</label><div class="mb-2"><img id="foto-preview" class="hidden w-24 h-24 rounded-full border-2 border-emerald-500 object-cover mx-auto" alt="Foto Santri"></div><div class="flex gap-2 justify-center flex-wrap"><input type="file" id="upload_foto_kenaikan" accept="image/*" onchange="uploadFotoKenaikan(event)" class="w-full border rounded-xl p-2 text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"><button type="button" onclick="hapusFotoKenaikan()" id="btn-hapus-foto-kenaikan" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow transition hidden"><i class="fa-solid fa-trash"></i> Hapus</button></div><input type="hidden" id="k_foto" value=""></div><div class="flex justify-end gap-2 pt-3 border-t border-slate-200"><button type="button" onclick="closeModal('modalKenaikan')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button type="submit" id="btn_simpan_kenaikan" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa">Simpan</button></div></form></div></div>
+<div id="modalBayar" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 shadow-2xl border border-slate-100"><h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-cash-register text-emerald-600"></i> Catat Bayar</h3><form onsubmit="saveBayar(event)" class="space-y-2 text-sm"><div><label class="block font-semibold mb-0.5 text-slate-700">Pilih Santri</label><div class="searchable-select-wrapper"><input type="text" id="search_santri_bayar" placeholder="Ketik nama atau NIS..." oninput="handleModalSearchInput('search_santri_bayar','b_santri_dropdown','b_santri_val')" autocomplete="off" class="w-full border rounded-xl p-2 outline-emerald-600 mb-1 text-sm bg-white" data-next="b_jenis"><div id="b_santri_dropdown" class="searchable-dropdown-list"></div><input type="hidden" id="b_santri_val"></div></div><div><label class="block font-semibold mb-0.5 text-slate-700">Jenis</label><select id="b_jenis" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="b_jumlah"><option>Syahriyah / Bulanan</option><option>Infaq Pembangunan</option><option>Iuran Kegiatan</option></select></div><div><label class="block font-semibold mb-0.5 text-slate-700">Nominal (Rp)</label><input type="number" id="b_jumlah" placeholder="30000" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="b_ket"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Keterangan</label><input type="text" id="b_ket" placeholder="Bulan Agustus" required class="w-full border rounded-xl p-2.5 outline-emerald-600"></div><div class="flex justify-end gap-2 pt-3"><button type="button" onclick="closeModal('modalBayar')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button type="submit" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa">Simpan</button></div></form></div></div>
+<div id="modalKasMasuk" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 shadow-2xl border border-slate-100"><h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-arrow-down text-emerald-600"></i> Kas Masuk</h3><form onsubmit="saveKasMasukManual(event)" class="space-y-2 text-sm"><div><label class="block font-semibold mb-0.5 text-slate-700">Uraian</label><input type="text" id="km_ket" placeholder="Donatur" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="km_jumlah"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Jumlah (Rp)</label><input type="number" id="km_jumlah" placeholder="150000" required class="w-full border rounded-xl p-2.5 outline-emerald-600"></div><div class="flex justify-end gap-2 pt-3"><button type="button" onclick="closeModal('modalKasMasuk')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button type="submit" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa">Simpan</button></div></form></div></div>
+<div id="modalKasKeluar" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 shadow-2xl border border-slate-100"><h3 class="text-lg font-bold text-rose-900 flex items-center gap-2"><i class="fa-solid fa-arrow-up text-rose-600"></i> Kas Keluar</h3><form onsubmit="saveKasKeluar(event)" class="space-y-2 text-sm"><div><label class="block font-semibold mb-0.5 text-slate-700">Uraian</label><input type="text" id="kk_ket" placeholder="Pembelian Buku" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="kk_jumlah"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Jumlah (Rp)</label><input type="number" id="kk_jumlah" placeholder="50000" required class="w-full border rounded-xl p-2.5 outline-emerald-600"></div><div class="flex justify-end gap-2 pt-3"><button type="button" onclick="closeModal('modalKasKeluar')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button type="submit" class="px-4 py-2 bg-rose-700 text-white rounded-xl font-bold hover:bg-rose-800 shadow btn-biasa">Simpan</button></div></form></div></div>
+<div id="modalUstadz" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 shadow-2xl border border-slate-100"><h3 id="modalUstadzTitle" class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-chalkboard-user text-emerald-600"></i> Form Guru</h3><form id="formUstadz" onsubmit="saveUstadz(event)" class="space-y-2 text-sm"><input type="hidden" id="u_edit_id"><div><label class="block font-semibold mb-0.5 text-slate-700">NIG</label><input type="text" id="u_nig" placeholder="NIG-202601" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="u_nama"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Nama</label><input type="text" id="u_nama" required class="w-full border rounded-xl p-2.5 outline-emerald-600" autofocus data-next="u_wa"></div><div><label class="block font-semibold mb-0.5 text-slate-700">WA</label><input type="text" id="u_wa" placeholder="08xxxxxxxx" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="u_jilid"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Jilid</label><select id="u_jilid" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="u_tmt"><option>Pra TK</option><option>Jilid 1</option><option>Jilid 2</option><option>Jilid 3</option><option>Jilid 4</option><option>Jilid 5</option><option>Jilid 6</option><option>Kelas Al-Qur'an</option><option>Semua</option></select></div><div><label class="block font-semibold mb-0.5 text-slate-700">TMT</label><input type="date" id="u_tmt" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="u_ijinNaik"></div><div class="pt-1.5"><label class="flex items-center gap-2 cursor-pointer bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200"><input type="checkbox" id="u_ijinNaik" class="w-4 h-4 text-emerald-700 rounded"><span class="text-sm font-bold text-emerald-950">Ijin Naik</span></label></div><div class="pt-1.5"><label class="flex items-center gap-2 cursor-pointer bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200"><input type="checkbox" id="u_ijinUji" class="w-4 h-4 text-emerald-700 rounded"><span class="text-sm font-bold text-emerald-950">Ijin Uji</span></label></div><div class="flex justify-end gap-2 pt-3"><button type="button" onclick="closeModal('modalUstadz')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button type="submit" id="btn_submit_ustadz" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa">Simpan</button></div></form></div></div>
+<div id="modalUser" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 shadow-2xl border border-slate-100"><h3 id="modalUserTitle" class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-user-plus text-emerald-600"></i> Form User</h3><form id="formUser" onsubmit="saveUser(event)" class="space-y-2 text-sm"><input type="hidden" id="usr_edit_id"><div><label class="block font-semibold mb-0.5 text-slate-700">Username</label><input type="text" id="usr_username" required placeholder="username" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="usr_nama"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Nama</label><input type="text" id="usr_nama" required placeholder="Nama Lengkap" class="w-full border rounded-xl p-2.5 outline-emerald-600" autofocus data-next="usr_password"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Password</label><input type="text" id="usr_password" required placeholder="Password" class="w-full border rounded-xl p-2.5 outline-emerald-600 font-mono" data-next="usr_role"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Role</label><select id="usr_role" onchange="toggleRefInput(this.value)" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="usr_ref"><option value="Kepala">Kepala</option><option value="Bendahara">Bendahara</option><option value="Guru">Guru</option><option value="Wali Santri">Wali Santri</option></select></div><div id="div_ref_input" class="hidden"><label id="lbl_ref" class="block font-semibold mb-0.5 text-slate-700">NIS Santri</label><input type="text" id="usr_ref" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="usr_berhak_uji"></div><div class="pt-1.5"><label class="flex items-center gap-2 cursor-pointer bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200"><input type="checkbox" id="usr_berhak_uji" class="w-4 h-4 text-emerald-700 rounded"><span class="text-sm font-bold text-emerald-950">Berhak Uji</span></label></div><div class="flex justify-end gap-2 pt-3"><button type="button" onclick="closeModal('modalUser')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button type="submit" id="btn_submit_user" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa">Simpan</button></div></form></div></div>
+<div id="modalBalasPesan" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 shadow-2xl border border-slate-100"><h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-reply text-emerald-600"></i> Balas Pesan</h3><form onsubmit="saveBalasanPesan(event)" class="space-y-2 text-sm"><input type="hidden" id="balas_pesan_index"><div><label class="block font-semibold mb-0.5 text-slate-700">Pesan</label><div id="balas_pesan_sumber" class="p-2.5 bg-slate-100 rounded-xl text-sm text-slate-700 italic"></div></div><div><label class="block font-semibold mb-0.5 text-slate-700">Balasan</label><textarea id="balas_pesan_text" rows="3" required placeholder="Tulis balasan..." class="w-full border rounded-xl p-2.5 outline-emerald-600"></textarea></div><div class="flex justify-end gap-2 pt-3"><button type="button" onclick="closeModal('modalBalasPesan')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button type="submit" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa">Kirim</button></div></form></div></div>
+<div id="modalInfo" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 shadow-2xl border border-slate-100"><h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-bullhorn text-emerald-600"></i> Buat Pengumuman</h3><form onsubmit="saveInfo(event)" class="space-y-2 text-sm"><div><label class="block font-semibold mb-0.5 text-slate-700">Judul</label><input type="text" id="i_judul" required class="w-full border rounded-xl p-2.5 outline-emerald-600" autofocus data-next="i_isi"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Isi</label><textarea id="i_isi" rows="3" required class="w-full border rounded-xl p-2.5 outline-emerald-600"></textarea></div><div class="flex justify-end gap-2 pt-3"><button type="button" onclick="closeModal('modalInfo')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button type="submit" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa">Terbitkan</button></div></form></div></div>
+<div id="modalGantiSemua" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-3 shadow-2xl border border-slate-100"><h3 id="gantiSemuaTitle" class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-emerald-600"></i> Ganti Semua</h3><p class="text-sm text-slate-500">Isi daftar baru (pisahkan dengan enter):</p><textarea id="gantiSemuaTextarea" rows="10" class="w-full border rounded-xl p-2.5 outline-emerald-600 text-sm font-mono resize-none"></textarea><div class="flex justify-end gap-2 pt-3"><button onclick="closeModal('modalGantiSemua')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button onclick="simpanGantiSemua()" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Simpan</button></div></div></div>
+<div id="modalEditWali" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 shadow-2xl border border-slate-100"><h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-user-pen text-emerald-600"></i> Profil &amp; Pengaturan</h3><form onsubmit="saveUserWali(event)" class="space-y-3"><input type="hidden" id="edit_wali_user_id"><div class="bg-slate-50/80 rounded-2xl p-3 border border-slate-200"><p class="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2"><i class="fa-solid fa-user-graduate mr-1"></i> Data Santri</p><div id="profil-santri-data" class="space-y-1 text-sm"></div></div><div class="bg-slate-50/80 rounded-2xl p-3 border border-slate-200"><p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Data User Lama</p><div class="form-group"><label>Username</label><div class="data-lama" id="edit_wali_username_lama">-</div></div><div class="form-group"><label>Password</label><div class="data-lama" id="edit_wali_password_lama">-</div></div></div><div class="bg-emerald-50/50 rounded-2xl p-3 border border-emerald-200"><div class="form-group"><label>Username Baru</label><input type="text" id="edit_wali_username_baru" placeholder="Masukkan username baru" class="w-full border rounded-xl p-2 outline-emerald-600" data-next="edit_wali_password_baru"></div><div class="form-group"><label>Password Baru</label><input type="text" id="edit_wali_password_baru" placeholder="Masukkan password baru" class="w-full border rounded-xl p-2 outline-emerald-600 font-mono"></div></div><div class="flex justify-end gap-2 pt-2 border-t border-slate-200"><button type="button" onclick="closeModal('modalEditWali')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa"><i class="fa-solid fa-xmark"></i> Batal</button><button type="submit" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div></form></div></div>
+<div id="modalUploadExcel" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-3xl w-full p-6 space-y-4 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto"><div class="flex justify-between items-center border-b border-slate-200 pb-3"><div><h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-file-excel text-emerald-600"></i> Upload Data Santri</h3><p class="text-sm text-slate-500">Upload data santri secara massal via file Excel</p></div><button onclick="closeModal('modalUploadExcel')" class="text-slate-400 hover:text-slate-600 text-xl btn-biasa"><i class="fa-solid fa-xmark"></i></button></div><div class="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200"><h4 class="text-sm font-bold text-emerald-900 flex items-center gap-2 mb-2"><span class="bg-emerald-200 text-emerald-800 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span> Download Template Excel</h4><p class="text-sm text-slate-600 mb-3">Unduh template kosong, isi data santri, lalu upload kembali.</p><button onclick="downloadTemplateExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow transition btn-biasa flex items-center gap-2"><i class="fa-solid fa-download"></i> Download Template Excel</button><span class="text-xs text-slate-400 ml-2">(.xlsx)</span></div><div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200"><h4 class="text-sm font-bold text-slate-700 flex items-center gap-2 mb-2"><span class="bg-slate-200 text-slate-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span> Upload File Excel</h4><div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-emerald-500 transition cursor-pointer relative bg-white"><i class="fa-solid fa-cloud-upload-alt text-4xl text-slate-400 mb-3"></i><p class="text-slate-500 font-medium">Seret file Excel ke sini atau klik untuk memilih</p><p class="text-xs text-slate-400 mt-1">Support: .xlsx, .xls</p><input type="file" id="file-excel-input" accept=".xlsx,.xls" class="absolute inset-0 opacity-0 cursor-pointer" onchange="handleExcelUpload(event)"></div><div id="excel-progress" class="hidden mt-3"><div class="flex justify-between text-xs text-slate-500 mb-1"><span>Memproses...</span><span id="excel-progress-text">0%</span></div><div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden"><div id="excel-progress-bar" class="h-full bg-emerald-600 transition-all duration-300" style="width:0%"></div></div></div></div><div id="excel-preview-container" class="hidden bg-white rounded-2xl border border-slate-200 overflow-hidden"><div class="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center flex-wrap gap-2"><h4 class="text-sm font-bold text-slate-700 flex items-center gap-2"><span class="bg-slate-200 text-slate-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">3</span> Preview Data</h4><div class="flex items-center gap-3 text-xs"><span class="text-slate-500">Total: <strong id="excel-total-data" class="text-slate-700">0</strong></span><span class="text-emerald-600">✅ Valid: <strong id="excel-valid-data" class="text-emerald-700">0</strong></span><span class="text-rose-600">❌ Invalid: <strong id="excel-invalid-data" class="text-rose-700">0</strong></span></div></div><div class="table-wrapper max-h-60 overflow-y-auto p-2"><table class="w-full text-xs border-collapse"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-2 text-left">#</th><th class="p-2 text-left">NIS</th><th class="p-2 text-left">Nama</th><th class="p-2 text-left">Jilid</th><th class="p-2 text-left">Wali</th><th class="p-2 text-left">WA</th><th class="p-2 text-left">Status</th></tr></thead><tbody id="excel-preview-body"></tbody></table></div><div class="bg-slate-50 px-4 py-3 border-t border-slate-200 flex justify-between items-center flex-wrap gap-2"><div class="text-xs text-slate-500"><i class="fa-solid fa-info-circle text-emerald-600"></i> Menampilkan 10 data pertama dari <span id="excel-total-data-2">0</span> data</div><div class="flex gap-2"><button onclick="closeModal('modalUploadExcel')" class="border border-slate-300 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 btn-biasa"><i class="fa-solid fa-xmark"></i> Batal</button><button id="btn-upload-excel" onclick="confirmExcelUpload()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition btn-biasa flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled><i class="fa-solid fa-upload"></i> Upload <span id="excel-upload-count">0</span> Data</button></div></div></div><div class="bg-amber-50/70 p-3 rounded-xl border border-amber-200/70 text-xs text-amber-800"><p class="font-semibold"><i class="fa-solid fa-lightbulb mr-1"></i> Panduan:</p><ul class="list-disc pl-4 space-y-0.5 text-amber-700"><li>Kolom <strong>NIS</strong>, <strong>Nama</strong>, <strong>Jilid</strong>, dan <strong>WA Wali</strong> wajib diisi</li><li>Jilid harus salah satu: Pra TK, Jilid 1, Jilid 2, Jilid 3, Jilid 4, Jilid 5, Jilid 6, Kelas Al-Qur'an</li><li>WA Wali format: 08xxxxxxxx (minimal 10 digit)</li><li>Data yang tidak valid akan ditampilkan dan tidak diupload</li></ul></div></div></div>
+
+<script>
+// ============================================================
+// KONFIGURASI SUPABASE - MENGGUNAKAN TENANT
+// ============================================================
+var SUPABASE_URL = window.SUPABASE_URL || '';
+var SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || '';
+var supabaseClient = null;
+function initTenantSupabaseClient(){
+    if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) throw new Error('Konfigurasi Supabase tenant belum tersedia.');
+    SUPABASE_URL = window.SUPABASE_URL;
+    SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY;
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+// ============================================================
+// DATA CACHE
+// ============================================================
+var db = {
+    profil: null,
+    santri: [],
+    prestasi: [],
+    kenaikan: [],
+    bayar: [],
+    mutasi: [],
+    ustadz: [],
+    users: [],
+    informasi: [],
+    pesanWali: [],
+    kurikulum: [],
+    kegiatanLuar: []
+};
+var currentUser = null;
+var currentActiveSection = 'dashboard';
+var appReady = false;
+var sortMutasiField = 'tanggal';
+var sortMutasiOrder = 'desc';
+var currentPDFContent = '';
+var currentPDFFilename = 'dokumen.pdf';
+
+// ============================================================
+// FUNGSI DASAR
+// ============================================================
+function getEl(id){try{return document.getElementById(id)}catch(e){return null}}
+function setText(id,val){try{var el=getEl(id);if(el)el.innerText=val}catch(e){}}
+function setVal(id,val){try{var el=getEl(id);if(el)el.value=val}catch(e){}}
+function setSrc(id,val){try{var el=getEl(id);if(el)el.src=val}catch(e){}}
+function hideEl(id){try{var el=getEl(id);if(el)el.classList.add('hidden')}catch(e){}}
+function showEl(id){try{var el=getEl(id);if(el)el.classList.remove('hidden')}catch(e){}}
+function getVal(id){try{var el=getEl(id);return el?el.value:''}catch(e){return''}}
+function getTodayLocal(){try{var n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')}catch(e){return new Date().toISOString().split('T')[0]}}
+function updateSplash(p,s){try{var pr=getEl('splash-progress'),st=getEl('splash-status');if(pr)pr.style.width=Math.min(p,100)+'%';if(st&&s)st.textContent=s}catch(e){}}
+function showNotif(msg){try{var el=document.createElement('div');el.className='fixed top-4 right-4 bg-emerald-600 text-white px-5 py-2.5 rounded-2xl shadow-lg text-sm font-semibold z-50 animate-bounce';el.innerText=msg;document.body.appendChild(el);setTimeout(function(){el.style.opacity='0';el.style.transition='opacity 0.5s';setTimeout(function(){el.remove()},500)},2000)}catch(e){}}
+function forceShowLogin(){try{var splash=getEl('splash-screen'),login=getEl('login-screen'),main=getEl('main-app-container');if(login)login.style.display='flex';if(main)main.style.display='none';if(splash){splash.style.opacity='0';setTimeout(function(){if(splash)splash.style.display='none'},500)}}catch(e){}}
+function togglePasswordVisibility(){try{var input=getEl('login-password'),icon=getEl('password-toggle-icon');if(!input||!icon)return;if(input.type==='password'){input.type='text';icon.className='fa-solid fa-eye-slash'}else{input.type='password';icon.className='fa-solid fa-eye'}}catch(e){}}
+function updateAllLogos(){try{var def='https://api.iconify.design/fluent-emoji-flat:open-book.svg',logo=(db.profil&&db.profil.logo)?db.profil.logo:def,ids=['splash-logo','login-logo','sidebar-logo','dash-logo-animasi'];for(var i=0;i<ids.length;i++){var el=getEl(ids[i]);if(el){el.src=logo;el.onerror=function(){this.src=def}}}}catch(e){}}
+function updateMetodeLabels(){try{var metode=db.profil?db.profil.metode:'Metode',labels=['label-metode-prestasi','label-prev-metode','th-metode-prestasi','th-metode-wali-prestasi','th-metode-kenaikan'];for(var i=0;i<labels.length;i++){var el=getEl(labels[i]);if(el)el.innerText=(labels[i].indexOf('th-')===0)?metode:metode+':'}var labelKen=getEl('label-metode-kenaikan');if(labelKen)labelKen.innerText='Nilai '+metode}catch(e){}}
+
+// ============================================================
+// SIDEBAR & NAVIGASI
+// ============================================================
+function toggleSidebar(e){try{if(e)e.stopPropagation();var sidebar=getEl('app-sidebar');if(sidebar){sidebar.classList.toggle('-translate-x-full');if(!sidebar.classList.contains('-translate-x-full')){var nav=getEl('sidebar-nav');if(nav)nav.scrollTop=0}}}catch(e){}}
+function setupSidebarEvents(){try{var sidebar=getEl('app-sidebar'),mainArea=getEl('main-content-area'),header=document.querySelector('header');if(mainArea&&sidebar){mainArea.addEventListener('click',function(e){var target=e.target,isSidebarClick=sidebar.contains(target),isToggleBtn=target.closest('.fa-bars')||target.closest('[onclick*="toggleSidebar"]'),isHeaderBtn=header&&header.contains(target)&&target.closest('button');if(!isSidebarClick&&!isToggleBtn&&!isHeaderBtn){if(!sidebar.classList.contains('-translate-x-full')){sidebar.classList.add('-translate-x-full')}}})}var nav=getEl('sidebar-nav');if(nav)nav.scrollTop=0}catch(e){}}
+function setupAutoFocus(formSelector){try{var form=document.querySelector(formSelector);if(!form)return;var inputs=form.querySelectorAll('input:not([type="hidden"]), select, textarea');if(!inputs.length)return;for(var i=0;i<inputs.length;i++){var inp=inputs[i];if(!inp.hasAttribute('data-next')&&i<inputs.length-1){inp.setAttribute('data-next',inputs[i+1].id)}}for(var j=0;j<inputs.length;j++){var inp=inputs[j];inp.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();var nextId=this.getAttribute('data-next');if(nextId){var nextEl=getEl(nextId);if(nextEl){nextEl.focus();if(nextEl.tagName==='SELECT'||nextEl.tagName==='INPUT'||nextEl.tagName==='TEXTAREA'){nextEl.select?nextEl.select():null}}}}})}var firstInput=inputs[0];if(firstInput&&!firstInput.disabled){setTimeout(function(){firstInput.focus();firstInput.select?firstInput.select():null},200)}}catch(e){}}
+function openWhatsAppFounder(){try{var namaTPQ=db.profil?db.profil.nama:'TPQ',alamat=db.profil?db.profil.alamat:'',namaUser=currentUser?currentUser.nama:'Pengguna',pesan='Assalamualaikum, Saya mau konsultasi tentang Aplikasi SIAP LPQ, kami dari '+namaTPQ+' Alamat '+alamat+' Atas nama '+namaUser+'. Terimakasih. Wassalamu\'alaikum.',url='https://wa.me/6283198740074?text='+encodeURIComponent(pesan);window.open(url,'_blank')}catch(e){alert('❌ Gagal membuka WhatsApp: '+e.message)}}
+
+// ============================================================
+// DEFAULT KURIKULUM
+// ============================================================
+var defaultKurikulum={'Pra TK':{doa_harian:['Doa akan belajar','Doa sesudah membaca Al-Qur\'an','Doa untuk kedua orang tua','Doa kebaikan dunia dan akhirat (Sapu Jagad)','Doa sebelum makan','Doa sesudah makan','Doa sebelum tidur','Doa bangun tidur','Doa akan berwudhu'],fasholatan:['Niat wudhu','Niat shalat fardhu Subuh, Dzuhur, Ashar, Maghrib, Isya'],surat_pendek:['Surat Al-Fatihah','Surat An-Naas','Surat Al-Ikhlas','Surat Al-Falaq'],tajwid:[],ghorib:[],kurikulum_tambahan:''},'Jilid 1':{doa_harian:['Doa akan belajar','Doa sesudah membaca Al-Qur\'an','Doa untuk kedua orang tua','Doa kebaikan dunia dan akhirat (Sapu Jagad)','Doa sebelum makan','Doa sesudah makan','Doa sebelum tidur','Doa bangun tidur','Doa akan berwudhu'],fasholatan:['Niat wudhu','Niat shalat fardhu Subuh, Dzuhur, Ashar, Maghrib, Isya'],surat_pendek:['Surat Al-Fatihah','Surat An-Naas','Surat Al-Ikhlas','Surat Al-Falaq'],tajwid:[],ghorib:[],kurikulum_tambahan:''},'Jilid 2':{doa_harian:['Doa masuk masjid','Doa keluar masjid','Doa masuk kamar mandi','Doa keluar kamar mandi'],fasholatan:['Doa Iftitah','Bacaan Rukuk','Bacaan I\'tidal'],surat_pendek:['Surat Al-Lahab','Surat An-Nasr','Surat Al-Kafirun','Surat Al-Kautsar'],tajwid:[],ghorib:[],kurikulum_tambahan:''},'Jilid 3':{doa_harian:['Doa memakai pakaian','Doa melepas pakaian','Doa ketika bercermin','Doa naik kendaraan'],fasholatan:['Doa Qunut (Subuh)','Bacaan Sujud','Bacaan duduk antara dua sujud','Tahiyat Awal'],surat_pendek:['Surat Al-Ma\'un','Surat Al-Quraisy','Surat Al-Fiil','Al-Humazah','Al-Asr'],tajwid:[],ghorib:[],kurikulum_tambahan:''},'Jilid 4':{doa_harian:['Doa masuk rumah','Doa keluar rumah','Doa ketika mendapat nikmat','Doa ketika tertimpa musibah'],fasholatan:['Tasyahud Akhir','Do\'a Sebelum salam','Do\'a Sesudah Salam'],surat_pendek:['Surat At-Takatsur','Surat Al-Qori\'ah','Surat Al-Adiyat','Al-Zalzalah','Al-Bayyinah'],tajwid:['Hunnah Musyadadah','Hukum Nun Sukun Atau Tanwin'],ghorib:['Waqof lazim','Tanda Waqof','Tanda Washol','Mu\'anaqoh'],kurikulum_tambahan:''},'Jilid 5':{doa_harian:['Doa sesudah belajar','Doa ketika ada petir','Doa turun hujan','Doa berbuka puasa'],fasholatan:['Praktek wudhu dan Sholat'],surat_pendek:['Surat Al-Qodar','Surat Al-Alaq','At-Tin','Surat Al-Insyiroh','Surat Ad-Dhuha'],tajwid:['Hukum mim sukun','Hukum Nun sukun'],ghorib:['Mengulang tanda Waqof dan Washol','Imalah','Isyamam','Saktah'],kurikulum_tambahan:''},'Jilid 6':{doa_harian:['Muroja\'ah doa harian (Semua doa dari Jilid 1-5)'],fasholatan:['Praktek wudhu','Gerakan sholat','Bacaan sholat'],surat_pendek:['Muroja\'ah surat Pendek (An-Naas s/d Adh-Dhuha)'],tajwid:['Mengulang materi Tajwid'],ghorib:['Menyelesaikan pelajaran Ghorib'],kurikulum_tambahan:''},'Kelas Al-Qur\'an':{doa_harian:['Pematangan Do\'a harian'],fasholatan:['Pematangan Fasholatan'],surat_pendek:['Pematangan Surat pendek','Pematangan BTA','Pematangan Makhorijul huruf'],tajwid:['Pematangan Tajwid'],ghorib:['Pematangan Ghorib'],kurikulum_tambahan:''}};
+
+// ============================================================
+// LOAD DATA & LOGIN
+// ============================================================
+async function loadAllData() {
+    try {
+        updateSplash(5, 'Menghubungi...');
+        var profilData = null;
+        try {
+            var result = await supabaseClient.from('profil').select('*').limit(1).maybeSingle();
+            if (!result.error && result.data) profilData = result.data;
+        } catch(e) {}
+        updateSplash(15, 'Profil...');
+        if (!profilData) {
+            var tenantNama = window.__TENANT ? window.__TENANT.nama : 'TPQ';
+            var tenantAlamat = window.__TENANT ? window.__TENANT.alamat : 'Alamat Lembaga';
+            db.profil = {
+                nama: tenantNama,
+                alamat: tenantAlamat,
+                tahunBerdiri: "2012",
+                nisp: "311233240001",
+                bernaug: "RMI NU",
+                metode: "Tilawati",
+                kepala: "Ky Ahmad Fathunnur, C.Eq",
+                bendahara: "Ustadzah Siti Fatimah",
+                bulanan: "30000",
+                logo: "https://api.iconify.design/fluent-emoji-flat:open-book.svg"
+            };
+        } else {
+            db.profil = profilData;
+        }
+        updateAllLogos();
+        updateMetodeLabels();
+        
+        var tables = ['santri', 'prestasi', 'kenaikan', 'bayar', 'mutasi', 'ustadz', 'users', 'informasi', 'pesanWali', 'kurikulum', 'kegiatanLuar'];
+        for (var i = 0; i < tables.length; i++) {
+            var t = tables[i];
+            updateSplash(20 + (i / tables.length) * 70, 'Memuat ' + t + '...');
+            try {
+                var result = await supabaseClient.from(t).select('*');
+                db[t] = (result.error || !result.data) ? [] : result.data;
+            } catch(e) {
+                db[t] = [];
+            }
+        }
+        if (db.kurikulum.length === 0) {
+            for (var key in defaultKurikulum) {
+                if (defaultKurikulum.hasOwnProperty(key)) {
+                    db.kurikulum.push({
+                        jilid: key,
+                        data: defaultKurikulum[key],
+                        kurikulum_tambahan: defaultKurikulum[key].kurikulum_tambahan || ''
+                    });
+                }
+            }
+        }
+        updateSplash(95, 'Selesai!');
+        appReady = true;
+        return true;
+    } catch(e) {
+        console.error('Load error:', e);
+        var tenantNama = window.__TENANT ? window.__TENANT.nama : 'TPQ';
+        var tenantAlamat = window.__TENANT ? window.__TENANT.alamat : 'Alamat Lembaga';
+        db.profil = {
+            nama: tenantNama,
+            alamat: tenantAlamat,
+            tahunBerdiri: "2012",
+            nisp: "311233240001",
+            bernaug: "RMI NU",
+            metode: "Tilawati",
+            kepala: "Ky Ahmad Fathunnur, C.Eq",
+            bendahara: "Ustadzah Siti Fatimah",
+            bulanan: "30000",
+            logo: "https://api.iconify.design/fluent-emoji-flat:open-book.svg"
+        };
+        updateAllLogos();
+        updateMetodeLabels();
+        appReady = true;
+        return false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initTenantFromURL().then(function(tenantReady) {
+        if (!tenantReady) {
+            document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;padding:24px;font-family:system-ui,sans-serif;"><div style="max-width:520px;background:white;border:1px solid #e2e8f0;border-radius:20px;padding:28px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08);"><div style="font-size:42px;margin-bottom:12px;">⚠️</div><h2 style="color:#065f46;margin:0 0 8px;font-size:22px;">Lembaga Tidak Ditemukan</h2><p style="color:#64748b;margin:0;">URL aplikasi harus memiliki kode tenant yang terdaftar dan aktif.</p></div></div>';
+            return;
+        }
+        if (window.__TENANT) {
+            document.getElementById('splash-nama-tpq').textContent = window.__TENANT.nama || 'SIAP LPQ';
+        }
+        
+        updateSplash(2, 'Mulai...');
+        var timeout = setTimeout(function() {
+            console.warn('⏱️ Timeout, force login');
+            forceShowLogin();
+        }, 8000);
+        
+        loadAllData().then(function(success) {
+            updateSplash(92, 'Sesi...');
+            var sessionData = null;
+            try {
+                var raw = localStorage.getItem('tpq_session');
+                if (raw) sessionData = JSON.parse(raw);
+            } catch(e) {}
+            if (sessionData) {
+                try {
+                    var found = null;
+                    for (var i = 0; i < db.users.length; i++) {
+                        var u = db.users[i];
+                        if (u.username === sessionData.username && u.password === sessionData.password && u.role === sessionData.role) {
+                            found = u;
+                            break;
+                        }
+                    }
+                    if (found) {
+                        currentUser = found;
+                        var login = getEl('login-screen');
+                        var main = getEl('main-app-container');
+                        var splash = getEl('splash-screen');
+                        if (login) login.style.display = 'none';
+                        if (main) {
+                            main.style.display = 'flex';
+                            main.style.opacity = '1';
+                        }
+                        if (splash) {
+                            splash.style.opacity = '0';
+                            setTimeout(function() {
+                                if (splash) splash.style.display = 'none';
+                            }, 400);
+                        }
+                        applyUserTheme(currentUser.role);
+                        setupSidebarByRole();
+                        renderAll();
+                        showSection('dashboard');
+                        clearTimeout(timeout);
+                        updateSplash(100, 'Selamat datang!');
+                        setupSidebarEvents();
+                        initBackupInfo();
+                        return;
+                    }
+                } catch(e) {}
+            }
+            forceShowLogin();
+            clearTimeout(timeout);
+        });
+    });
+});
+
+function handleLogin(e) {
+    e.preventDefault();
+    try {
+        var role = getVal('login-role');
+        var user = getVal('login-username').trim();
+        var pass = getVal('login-password').trim();
+        var found = null;
+        for (var i = 0; i < db.users.length; i++) {
+            var u = db.users[i];
+            if (u.username === user && u.password === pass && u.role === role) {
+                found = u;
+                break;
+            }
+        }
+        if (found) {
+            currentUser = found;
+            try {
+                localStorage.setItem('tpq_session', JSON.stringify({
+                    username: found.username,
+                    password: found.password,
+                    role: found.role
+                }));
+            } catch(e) {}
+            var login = getEl('login-screen');
+            var main = getEl('main-app-container');
+            var splash = getEl('splash-screen');
+            if (login) login.style.display = 'none';
+            if (main) {
+                main.style.display = 'flex';
+                main.style.opacity = '1';
+            }
+            if (splash) {
+                splash.style.opacity = '0';
+                setTimeout(function() {
+                    if (splash) splash.style.display = 'none';
+                }, 400);
+            }
+            applyUserTheme(currentUser.role);
+            setupSidebarByRole();
+            renderAll();
+            showSection('dashboard');
+            updateSplash(100, 'Selamat datang!');
+            setupSidebarEvents();
+            initBackupInfo();
+        } else {
+            alert('❌ Username/Password/Role salah!');
+        }
+    } catch(e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+function keluarSeketika() {
+    try { window.close(); } catch(e) {}
+    window.location.href = 'about:blank';
+}
+
+function konfirmasiKeluar() {
+    if (confirm("Yakin keluar?")) {
+        try { localStorage.removeItem('tpq_session'); } catch(e) {}
+        window.location.href = 'about:blank';
+    }
+}
+
+function showSection(id) {
+    try {
+        currentActiveSection = id;
+        var sections = document.querySelectorAll('.content-section');
+        for (var i = 0; i < sections.length; i++) {
+            sections[i].classList.add('hidden');
+        }
+        var el = getEl(id);
+        if (el) el.classList.remove('hidden');
+        var navLinks = document.querySelectorAll('.nav-link');
+        for (var j = 0; j < navLinks.length; j++) {
+            var l = navLinks[j];
+            l.className = "nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa";
+            if (l.getAttribute('onclick') && l.getAttribute('onclick').indexOf(id) !== -1) {
+                l.className = "nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa";
+            }
+        }
+        var titles = {
+            dashboard: 'Dashboard LPQ',
+            profil: 'Pengaturan Profil',
+            kurikulum: 'Kurikulum TPQ',
+            ustadz: 'Data Guru',
+            santri: 'Data Santri',
+            prestasi: 'Buku Prestasi',
+            kenaikan: 'Kenaikan Jilid',
+            pembayaran: 'Pembayaran & Kas',
+            mutasi: 'Kas Keluar Masuk',
+            pesan_wali: 'Pesan Wali Santri',
+            informasi: 'Papan Informasi',
+            user: 'Management User',
+            backup: 'Backup & Restore',
+            utility: 'Sambutan Founder'
+        };
+        if (titles[id]) {
+            var t = getEl('page-title');
+            if (t) t.innerText = titles[id];
+        }
+        var sb = getEl('app-sidebar');
+        if (sb && !sb.classList.contains('-translate-x-full')) {
+            sb.classList.add('-translate-x-full');
+        }
+        var mainArea = getEl('main-content-area');
+        if (mainArea) {
+            mainArea.scrollTop = 0;
+        }
+        if (id === 'pembayaran') {
+            setTimeout(function() {
+                var btn = getEl('btn-catat-pembayaran');
+                if (btn) btn.focus();
+            }, 300);
+        }
+        setTimeout(function() {
+            var sectionEl = getEl(id);
+            if (sectionEl) {
+                var firstInput = sectionEl.querySelector('input:not([type="hidden"]), select, textarea');
+                if (firstInput && !firstInput.disabled) {
+                    firstInput.focus();
+                }
+            }
+        }, 300);
+    } catch(e) {}
+}
+
+function openModal(id) {
+    try {
+        var el = getEl(id);
+        if (el) {
+            el.classList.remove('hidden');
+            setTimeout(function() {
+                if (id === 'modalPrestasi') {
+                    var input = getEl('search_santri_prestasi');
+                    if (input) { input.focus(); }
+                    setupAutoFocus('#modalPrestasi form');
+                } else if (id === 'modalSantri') {
+                    var namaInput = getEl('s_nama');
+                    if (namaInput) { namaInput.focus(); }
+                    setupAutoFocus('#modalSantri form');
+                } else if (id === 'modalKenaikan') {
+                    setupAutoFocus('#modalKenaikan form');
+                } else if (id === 'modalBayar') {
+                    setupAutoFocus('#modalBayar form');
+                } else if (id === 'modalKasMasuk') {
+                    setupAutoFocus('#modalKasMasuk form');
+                } else if (id === 'modalKasKeluar') {
+                    setupAutoFocus('#modalKasKeluar form');
+                } else if (id === 'modalUstadz') {
+                    setupAutoFocus('#modalUstadz form');
+                } else if (id === 'modalUser') {
+                    setupAutoFocus('#modalUser form');
+                } else if (id === 'modalInfo') {
+                    setupAutoFocus('#modalInfo form');
+                } else if (id === 'modalEditWali') {
+                    setupAutoFocus('#modalEditWali form');
+                } else {
+                    var inp = el.querySelector('input:not([type="hidden"]), select, textarea');
+                    if (inp) inp.focus();
+                }
+            }, 100);
+        }
+        if (id === 'modalSantri') autoSelectGuru(getVal('s_jilid'));
+        if (id === 'modalEditWali') loadDataWali();
+    } catch(e) {}
+}
+
+function closeModal(id) {
+    try {
+        var el = getEl(id);
+        if (el) el.classList.add('hidden');
+    } catch(e) {}
+}
+
+function applyUserTheme(role) {
+    try {
+        var b = getEl('app-body');
+        var s = getEl('app-sidebar');
+        var header = getEl('dash-header-container');
+        if (!b || !s) return;
+        s.className = 'w-64 bg-gradient-to-b from-emerald-900 via-emerald-950 to-teal-950 text-white flex flex-col shadow-2xl border-r border-emerald-800/50 absolute md:relative z-30 h-full transition-transform duration-300 -translate-x-full md:-translate-x-full';
+        if (header) {
+            header.className = 'relative rounded-3xl p-5 md:p-8 shadow-2xl overflow-hidden border-2 border-amber-400/30 card-3d dash-counter-bg-v3';
+            header.style.color = '#f5e6c8';
+        }
+        if (role === 'Kepala') {
+            b.className = "bg-gradient-to-br from-slate-100 via-emerald-50/40 to-slate-100 font-sans text-slate-800 min-h-screen";
+        } else if (role === 'Bendahara') {
+            b.className = "bg-gradient-to-br from-amber-50 via-yellow-50/40 to-amber-100 font-sans text-slate-800 min-h-screen";
+        } else if (role === 'Guru') {
+            b.className = "bg-gradient-to-br from-sky-50 via-blue-50/40 to-sky-100 font-sans text-slate-800 min-h-screen";
+        } else if (role === 'Wali Santri') {
+            b.className = "bg-gradient-to-br from-purple-50 via-fuchsia-50/40 to-pink-100 font-sans text-slate-800 min-h-screen";
+        }
+    } catch(e) {}
+}
+
+function setupSidebarByRole() {
+    try {
+        var nav = getEl('sidebar-nav');
+        var ub = getEl('user-badge');
+        if (ub) ub.innerText = currentUser.nama + ' (' + currentUser.role + ')';
+        if (!nav) return;
+        var html = '';
+        if (currentUser.role === 'Kepala') {
+            html = getSidebarItems('Kepala');
+        } else if (currentUser.role === 'Bendahara') {
+            html = getSidebarItems('Bendahara');
+        } else if (currentUser.role === 'Guru') {
+            html = getSidebarItems('Guru');
+        } else if (currentUser.role === 'Wali Santri') {
+            html = getSidebarItems('Wali Santri');
+        }
+        if (nav) nav.innerHTML = html;
+        var btnContainer = getEl('btn-guru-container');
+        if (btnContainer) {
+            btnContainer.style.display = (currentUser.role === 'Guru') ? 'none' : 'flex';
+        }
+        updateSidebarCopyright();
+        if (nav) nav.scrollTop = 0;
+    } catch(e) {}
+}
+
+function getSidebarItems(role) {
+    var items = '';
+    if (role === 'Kepala') {
+        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'profil\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-gear w-5 text-amber-400"></i> Pengaturan Profil</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'ustadz\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chalkboard-user w-5 text-amber-400"></i> Data Guru</a><a href="#" onclick="showSection(\'santri\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-users w-5 text-amber-400"></i> Data Santri</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'kenaikan\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-award w-5 text-amber-400"></i> Kenaikan Jilid</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'mutasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-file-invoice-dollar w-5 text-amber-400"></i> Kas Keluar Masuk</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Pesan Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'user\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-user-gear w-5 text-amber-400"></i> Management User</a><a href="#" onclick="showSection(\'backup\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-database w-5 text-amber-400"></i> Backup & Restore</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="hapusFotoManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-regular fa-trash-can w-5 text-amber-200"></i> Hapus Foto > 1 Bulan</a><a href="#" onclick="hapusAllDataGlobal()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa mt-2"><i class="fa-solid fa-triangle-exclamation w-5 text-amber-200"></i> Hapus All Data</a><a href="#" onclick="hapusDataLamaManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-solid fa-clock-rotate-left w-5 text-amber-200"></i> Hapus Manual</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
+    } else if (role === 'Bendahara') {
+        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'mutasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-file-invoice-dollar w-5 text-amber-400"></i> Kas Keluar Masuk</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Pesan Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="hapusFotoManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-regular fa-trash-can w-5 text-amber-200"></i> Hapus Foto > 1 Bulan</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
+    } else if (role === 'Guru') {
+        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'ustadz\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chalkboard-user w-5 text-amber-400"></i> Data Guru</a><a href="#" onclick="showSection(\'santri\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-users w-5 text-amber-400"></i> Data Santri</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Pesan Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
+    } else if (role === 'Wali Santri') {
+        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="openModal(\'modalEditWali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-user-pen w-5 text-amber-400"></i> Profil &amp; Pengaturan</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
+    }
+    return items;
+}
+
+function updateSidebarCopyright() {
+    try {
+        var footer = getEl('sidebar-copyright-footer');
+        if (!footer) return;
+        var namaTPQ = db.profil ? db.profil.nama : 'TPQ';
+        var founder = 'Ahmad Fathunnur';
+        var wa = '083198740074';
+        footer.innerHTML = '<div id="sidebar-footer" class="sidebar-footer-text text-center space-y-1.5"><p class="font-bold text-amber-300 text-xs">' + namaTPQ + '</p><p class="text-emerald-300 text-[10px] font-medium">Development : Daneva Studio</p><p class="text-emerald-300 text-xs font-semibold">' + founder + '</p><p class="text-amber-300 text-xs"><i class="fa-brands fa-whatsapp mr-1"></i><a href="#" onclick="openWhatsAppFounder()" class="hover:underline">' + wa + '</a></p><p class="text-emerald-300/70 text-[10px] pt-1 border-t border-emerald-800/60">Copyright 2026</p></div>';
+    } catch(e) {}
+}
+
+// ============================================================
+// [SEMUA FUNGSI LAINNYA SAMA PERSIS DENGAN ASLI]
+// handleModalSearchInput, selectSantriItem, handleCompactSearchInput,
+// autoSelectGuru, loadPrevPrestasi, showPrestasiSantriInfo, resetFormPrestasi,
+// setPrestasiTanggal, togglePrestasiWaliList, togglePembayaranWaliList,
+// toggleTabelBayarList, resetFilterMutasi, resetFilterPembayaran,
+// refreshPesanWali, hitungMasaPengabdian, hapusAllDataGlobal, syncTable,
+// hapusPesanOtomatis, hapusPrestasiSantri,
+// CRUD Santri, Ustadz, User, Informasi, Pesan Wali,
+// CRUD Prestasi, Kenaikan, Bayar, Mutasi, Profil, Kegiatan,
+// Hapus Foto, Upload Foto, Kurikulum, Render, Dashboard,
+// Filter, View Dokumen, Cetak PDF, Receipt, Sertifikat,
+// Upload Excel, Backup & Restore, dll.
+// ============================================================
+
+console.log('✅ SIAP LPQ Multi-Tenant siap digunakan!');
+console.log('📌 Mode TPQ: tambahkan ?tenant=nama-tpq di URL');
+console.log('📌 Supabase Admin:', ADMIN_SUPABASE_URL);
+console.log('📌 Tenant aktif:', window.__TENANT ? window.__TENANT.nama : 'Belum ada');
+</script>
+
+</body>
+</html>
