@@ -207,7 +207,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 #user-search-input{padding:8px 14px;border:1px solid #e2e8f0;border-radius:12px;font-size:14px;width:100%;max-width:300px;outline:none;min-height:40px}
 #user-search-input:focus{border-color:#065f46;box-shadow:0 0 0 3px rgba(6,95,70,0.1)}
 @media (max-width:640px){.sertifikat-container{padding:16px;border-width:4px}.sertifikat-container .sudut{width:30px;height:30px}.sertifikat-container .bintang-sudut{font-size:16px}.sertifikat-container .bintang-sudut-kiri-atas{top:14px;left:14px}.sertifikat-container .bintang-sudut-kanan-atas{top:14px;right:14px}.sertifikat-container .bintang-sudut-kiri-bawah{bottom:14px;left:14px}.sertifikat-container .bintang-sudut-kanan-bawah{bottom:14px;right:14px}.sertifikat-container .arabesque{font-size:18px;letter-spacing:6px}.sertifikat-foto{width:90px;height:90px}#modalViewDokumen .modal-header .btn-download,#modalViewDokumen .modal-header .btn-close{padding:4px 10px;font-size:11px;min-height:28px}#modalViewDokumen .modal-header h3{font-size:14px}#foto-preview,#foto-placeholder{width:80px;height:80px}}
-.dash-counter-bg-v3{background:linear-gradient(135deg,#065f46 0%,#0a7e5e 30%,#c9a84c 70%,#b8953a 100%);color:#f5e6c8;box-shadow:0 4px 30px rgba(201,168,76,0.3),inset 0 1px 0 rgba(255,255,255,0.2)}
+.dash-counter-bg-v3{background:linear-gradient(135deg,#022c22 0%,#065f46 38%,#0a7e5e 62%,#b8953a 100%);color:#fff8dc;box-shadow:0 6px 32px rgba(6,95,70,0.35),0 0 24px rgba(201,168,76,0.22),inset 0 1px 0 rgba(255,255,255,0.22)}
+.dash-quran-calligraphy{display:inline-flex;align-items:center;justify-content:center;min-width:190px;padding:8px 18px;border:1px solid rgba(245,230,200,.55);border-radius:18px;background:linear-gradient(145deg,rgba(2,44,34,.82),rgba(201,168,76,.18));box-shadow:0 5px 22px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.18);color:#f7e7b5;font-family:'Amiri',serif;font-size:28px;line-height:1.05;text-shadow:0 2px 10px rgba(0,0,0,.35)}
+.dash-quran-calligraphy small{display:block;font-family:'Playfair Display',serif;font-size:9px;letter-spacing:2px;color:#e8d5a8;margin-top:3px}
+.dash-quran-seal{position:absolute;right:18px;top:16px;z-index:4;text-align:center;pointer-events:none}
 .dash-counter-card-v2{background:rgba(255,255,255,0.15);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(201,168,76,0.4);border-radius:1rem;padding:0.75rem 1.25rem;display:flex;align-items:center;gap:1rem;box-shadow:0 4px 20px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.2)}
 .dash-counter-card-v2 .counter-value{color:#f5e6c8;font-weight:700}
 .dash-counter-card-v2 .counter-label{color:#d4af37;font-weight:600}
@@ -281,8 +284,9 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <!-- SECTION: DASHBOARD                                           -->
 <!-- ============================================================ -->
 <section id="dashboard" class="content-section space-y-5">
-<div id="dash-header-container" class="relative rounded-3xl p-5 md:p-8 shadow-2xl overflow-hidden border-2 border-amber-400/30 card-3d dash-counter-bg-v3" style="color:#f5e6c8;">
-<div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-100 animate-wave-medium"><img id="dash-logo-animasi" src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" class="w-56 h-56 md:w-72 md:h-72 object-contain filter brightness-100 drop-shadow-2xl opacity-100" style="opacity:0.15;"></div>
+<div id="dash-header-container" class="relative rounded-3xl p-5 md:p-8 shadow-2xl overflow-hidden border-2 border-amber-300/50 card-3d dash-counter-bg-v3" style="color:#fff8dc;">
+<div class="dash-quran-seal"><div class="dash-quran-calligraphy"><div><div>الْقُرْآنُ الْكَرِيمُ</div><small>AL-QUR'AN AL-KARIM</small></div></div></div>
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-100 animate-wave-medium"><img id="dash-logo-animasi" src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" class="w-56 h-56 md:w-72 md:h-72 object-contain filter brightness-100 drop-shadow-2xl opacity-100" style="opacity:0.10;"></div>
 <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-5 text-center md:text-left">
 <div class="space-y-2"><h2 id="dash-nama" class="text-xl md:text-3xl font-extrabold text-amber-300 drop-shadow-lg">TPQ NU 04 AL IHSAN</h2><p id="dash-alamat" class="text-emerald-200 text-sm font-medium"><i class="fa-solid fa-location-dot mr-1.5 text-amber-400"></i> Alamat Lembaga</p><p class="text-xs text-emerald-200 font-medium">Metode: <span id="dash-metode" class="font-semibold text-amber-300"></span> | Kepala: <span id="dash-kepala" class="font-semibold text-amber-300"></span></p></div>
 <div id="dash-stats-container" class="flex flex-wrap justify-center gap-3 items-center">
@@ -1061,40 +1065,11 @@ function handleCompactSearchInput(q){try{var drop=getEl('filter_search_dropdown'
 function selectCompactSearch(nama,label){try{var input=getEl('filter_bayar_cari'),drop=getEl('filter_search_dropdown');if(input)input.value=nama;if(drop)drop.style.display='none';applyFilterPembayaran()}catch(e){}}
 window.addEventListener('click',function(e){try{if(!e.target.closest('.searchable-select-wrapper')){var lists=document.querySelectorAll('.searchable-dropdown-list');for(var i=0;i<lists.length;i++){lists[i].style.display='none'}}}catch(e){}});
 function autoSelectGuru(jilid){try{var found=null;for(var i=0;i<db.ustadz.length;i++){if(db.ustadz[i].jilid===jilid||db.ustadz[i].jilid.indexOf('Semua')!==-1){found=db.ustadz[i];break}}var el=getEl('s_guru');if(el)el.value=found?found.nama:(db.profil?db.profil.kepala:'')}catch(e){}}
-function loadPrevPrestasi(nama){try{if(!nama)return;var s=getSantriByNisOrName('',nama);var riwayat=db.prestasi.filter(function(p){return s?recordBelongsToSantri(p,s):String(p.santri||'').toLowerCase()===String(nama).toLowerCase()});riwayat.sort(function(a,b){return getRecordDateValue(b)-getRecordDateValue(a)});var last={klasikal:'-',kitab:'-',doa:'-',surat:'-',alquran:'-',sholat:'-',tajwid:'-',tambahan:'-'};for(var i=0;i<riwayat.length;i++){var p=riwayat[i];if(last.klasikal==='-'&&p.klasikal&&p.klasikal!=='-')last.klasikal=p.klasikal;if(last.kitab==='-'&&p.kitab&&p.kitab!=='-')last.kitab=p.kitab;if(last.doa==='-'&&p.doa&&p.doa!=='-')last.doa=p.doa;if(last.surat==='-'&&p.surat&&p.surat!=='-')last.surat=p.surat;if(last.alquran==='-'&&p.alquran&&p.alquran!=='-')last.alquran=p.alquran;if(last.sholat==='-'&&p.sholat&&p.sholat!=='-')last.sholat=p.sholat;if(last.tajwid==='-'&&p.tajwid&&p.tajwid!=='-')last.tajwid=p.tajwid;if(last.tambahan==='-'&&p.tambahan&&p.tambahan!=='-')last.tambahan=p.tambahan}var ids=['prev_klasikal','prev_halaman','prev_doa','prev_surat','prev_alquran','prev_sholat','prev_tajwid','prev_tambahan'],vals=[last.klasikal,last.kitab,last.doa,last.surat,last.alquran,last.sholat,last.tajwid,last.tambahan];for(var j=0;j<ids.length;j++){var el=getEl(ids[j]);if(el)el.innerText=vals[j]||'-'}}catch(e){}}
-function showPrestasiSantriInfo(nama){try{var s=getSantriByNisOrName('',nama);if(!s)return;var nameEl=getEl('prestasi-santri-nama'),nisEl=getEl('prestasi-santri-nis'),jilidEl=getEl('prestasi-santri-jilid'),guruEl=getEl('prestasi-santri-guru'),lastEl=getEl('prestasi-santri-terakhir');if(nameEl)nameEl.innerText=s.nama;if(nisEl)nisEl.innerText=s.nis||'-';if(jilidEl)jilidEl.innerText=s.jilid||'-';if(guruEl)guruEl.innerText=s.guru||'-';var last=db.prestasi.filter(function(p){return recordBelongsToSantri(p,s)}).sort(function(a,b){return getRecordDateValue(b)-getRecordDateValue(a)})[0];if(lastEl)lastEl.innerText=last?(last.tanggal||last.dateIso||'-'):'Belum ada'}catch(e){}}
+function loadPrevPrestasi(nama){try{if(!nama)return;var riwayat=db.prestasi.filter(function(p){return p.santri.toLowerCase()===nama.toLowerCase()});var last={klasikal:'-',kitab:'-',doa:'-',surat:'-',alquran:'-',sholat:'-',tajwid:'-',tambahan:'-'};for(var i=0;i<riwayat.length;i++){var p=riwayat[i];if(last.klasikal==='-'&&p.klasikal&&p.klasikal!=='-')last.klasikal=p.klasikal;if(last.kitab==='-'&&p.kitab&&p.kitab!=='-')last.kitab=p.kitab;if(last.doa==='-'&&p.doa&&p.doa!=='-')last.doa=p.doa;if(last.surat==='-'&&p.surat&&p.surat!=='-')last.surat=p.surat;if(last.alquran==='-'&&p.alquran&&p.alquran!=='-')last.alquran=p.alquran;if(last.sholat==='-'&&p.sholat&&p.sholat!=='-')last.sholat=p.sholat;if(last.tajwid==='-'&&p.tajwid&&p.tajwid!=='-')last.tajwid=p.tajwid;if(last.tambahan==='-'&&p.tambahan&&p.tambahan!=='-')last.tambahan=p.tambahan}var ids=['prev_klasikal','prev_halaman','prev_doa','prev_surat','prev_alquran','prev_sholat','prev_tajwid','prev_tambahan'],vals=[last.klasikal,last.kitab,last.doa,last.surat,last.alquran,last.sholat,last.tajwid,last.tambahan];for(var j=0;j<ids.length;j++){var el=getEl(ids[j]);if(el)el.innerText=vals[j]||'-'}}catch(e){}}
+function showPrestasiSantriInfo(nama){try{var s=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nama.toLowerCase()===nama.toLowerCase()){s=db.santri[i];break}}if(!s)return;var nameEl=getEl('prestasi-santri-nama'),nisEl=getEl('prestasi-santri-nis'),jilidEl=getEl('prestasi-santri-jilid'),guruEl=getEl('prestasi-santri-guru'),lastEl=getEl('prestasi-santri-terakhir');if(nameEl)nameEl.innerText=s.nama;if(nisEl)nisEl.innerText=s.nis||'-';if(jilidEl)jilidEl.innerText=s.jilid||'-';if(guruEl)guruEl.innerText=s.guru||'-';var last=db.prestasi.filter(function(p){return p.santri.toLowerCase()===nama.toLowerCase()}).sort(function(a,b){return new Date(b.dateIso)-new Date(a.dateIso)})[0];if(lastEl)lastEl.innerText=last?last.tanggal:'Belum ada'}catch(e){}}
 function resetFormPrestasi(){try{var input=getEl('search_santri_prestasi'),hidden=getEl('p_santri_val');if(input){input.value='';input.focus()}if(hidden)hidden.value='';var fields=['p_klasikal','p_halaman','p_doa','p_surat','p_alquran','p_sholat','p_tajwid','p_tambahan'];for(var i=0;i<fields.length;i++){var el=getEl(fields[i]);if(el)el.value=''}}catch(e){}}
 function setPrestasiTanggal(){try{var now=new Date(),el=getEl('prestasi-tanggal-text');if(el)el.innerText=now.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}catch(e){}}
 var originalOpenModal=openModal;openModal=function(id){originalOpenModal(id);if(id==='modalPrestasi'){setPrestasiTanggal();resetFormPrestasi();setTimeout(function(){var input=getEl('search_santri_prestasi');if(input)input.focus()},300)}};
-
-// ============================================================
-// REFERENSI 1 - DB COMPATIBILITY HELPERS
-// Identitas utama santri = NIS. Nama hanya fallback untuk data lama.
-// ============================================================
-function getSantriByNisOrName(nis,nama){
-    try{
-        var n=nis==null?'':String(nis).trim();
-        var nm=nama==null?'':String(nama).trim().toLowerCase();
-        if(n){for(var i=0;i<db.santri.length;i++){if(String(db.santri[i].nis||'').trim()===n)return db.santri[i]}}
-        if(nm){for(var j=0;j<db.santri.length;j++){if(String(db.santri[j].nama||'').trim().toLowerCase()===nm)return db.santri[j]}}
-    }catch(e){}
-    return null;
-}
-function recordBelongsToSantri(record,santri){
-    if(!record||!santri)return false;
-    var nis=String(santri.nis||'').trim();
-    if(nis && String(record.nisSantri||record.nis||'').trim()===nis)return true;
-    var rn=String(record.santri||record.namaSantri||'').trim().toLowerCase();
-    return !!rn && rn===String(santri.nama||'').trim().toLowerCase();
-}
-function getRecordDateValue(record){
-    if(!record)return 0;
-    var d=record.dateIso;
-    if(d)return new Date(d).getTime()||0;
-    if(record.tanggal)return new Date(record.tanggal).getTime()||0;
-    if(record.created_at)return new Date(record.created_at).getTime()||0;
-    return 0;
-}
 
 // ============================================================
 // TOGGLE FUNCTIONS
@@ -1109,7 +1084,8 @@ function hitungMasaPengabdian(tmt){if(!tmt)return'-';try{var d=new Date(tmt),now
 function hapusAllDataGlobal(){if(confirm('⚠️ Hapus SELURUH DATA?')){db.santri=[];db.prestasi=[];db.kenaikan=[];db.bayar=[];db.ustadz=[];var tables=['santri','prestasi','kenaikan','bayar','ustadz'];for(var i=0;i<tables.length;i++){syncTable(tables[i])}alert('✅ Semua data dihapus.');renderAll()}}
 async function syncTable(t){try{var toSync=db[t].filter(function(item){return item.id}),toInsert=db[t].filter(function(item){return!item.id});if(toInsert.length)await supabaseClient.from(t).insert(toInsert);for(var i=0;i<toSync.length;i++){await supabaseClient.from(t).update(toSync[i]).eq('id',toSync[i].id)}}catch(e){}}
 async function hapusPesanOtomatis(){try{var now=Date.now(),thirty=30*24*60*60*1000,del=0,lama=db.pesanWali.filter(function(p){var w=p.waktu?new Date(p.waktu).getTime():0;return w&&(now-w)>thirty});if(lama.length){var ids=lama.map(function(p){return p.id}).filter(function(id){return id});if(ids.length){await supabaseClient.from('pesanWali').delete().in('id',ids);db.pesanWali=db.pesanWali.filter(function(p){return ids.indexOf(p.id)===-1});del+=ids.length}}return del}catch(e){return 0}}
-async function hapusPrestasiSantri(nama){try{var s=getSantriByNisOrName('',nama);var list=db.prestasi.filter(function(p){return s?recordBelongsToSantri(p,s):String(p.santri||'').toLowerCase()===String(nama||'').toLowerCase()});if(list.length){var ids=list.map(function(p){return p.id}).filter(function(id){return id});if(ids.length){var result=await supabaseClient.from('prestasi').delete().in('id',ids);if(result.error)throw result.error;db.prestasi=db.prestasi.filter(function(p){return ids.indexOf(p.id)===-1})}}}catch(e){console.warn('hapusPrestasiSantri:',e)}}
+async function hapusPrestasiSantri(nama){try{var list=db.prestasi.filter(function(p){return p.santri.toLowerCase()===nama.toLowerCase()});if(list.length){var ids=list.map(function(p){return p.id}).filter(function(id){return id});if(ids.length){await supabaseClient.from('prestasi').delete().in('id',ids);db.prestasi=db.prestasi.filter(function(p){return ids.indexOf(p.id)===-1})}}}catch(e){}}
+
 // ============================================================
 // CRUD - SANTRI
 // ============================================================
