@@ -4,6 +4,81 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SIAP LPQ - Sistem Informasi Administrasi & Prestasi Lembaga Pendidikan Al-Qur'an</title>
+
+<!-- ============================================================ -->
+<!-- KONFIGURASI SUPABASE ADMIN (UNTUK MANAJEMEN TENANT)           -->
+<!-- ============================================================ -->
+<script>
+// 🔑 GANTI DENGAN CREDENTIALS SUPABASE ADMIN ANDA!
+var ADMIN_SUPABASE_URL = 'https://wijyhdcdhpimgzcfpiou.supabase.co';
+var ADMIN_SUPABASE_ANON_KEY = 'sb_publishable_pwnbJfrRWyhcjJkBkj_pyA__9IUZDuz';
+</script>
+
+<!-- ============================================================ -->
+<!-- KONFIGURASI MULTI-TENANT                                      -->
+<!-- ============================================================ -->
+<script>
+// ============================================================
+// FUNGSI MENGAMBIL KONFIGURASI TENANT DARI SUPABASE ADMIN
+// ============================================================
+async function loadTenantConfig(tenantKey) {
+    try {
+        var mainClient = supabase.createClient(ADMIN_SUPABASE_URL, ADMIN_SUPABASE_ANON_KEY);
+        var { data, error } = await mainClient.rpc('get_tenant_config', { p_tenant_key: tenantKey });
+        if (error) {
+            console.error('❌ Gagal mengambil konfigurasi tenant:', error);
+            return null;
+        }
+        if (!data || data.success !== true) {
+            console.warn('⚠️ Tenant tidak ditemukan:', tenantKey);
+            return null;
+        }
+        return data;
+    } catch (e) {
+        console.error('Error load tenant:', e);
+        return null;
+    }
+}
+
+// ============================================================
+// INISIALISASI TENANT DARI URL
+// ============================================================
+async function initTenantFromURL() {
+    var params = new URLSearchParams(window.location.search);
+    var tenantKey = params.get('tenant');
+    
+    if (!tenantKey) {
+        tenantKey = window.location.hash.replace('#', '');
+    }
+    
+    if (!tenantKey) {
+        console.error('❌ Tidak ada tenant pada URL.');
+        return false;
+    }
+    
+    var config = await loadTenantConfig(tenantKey);
+    
+    if (config) {
+        window.SUPABASE_URL = config.supabase_url;
+        window.SUPABASE_ANON_KEY = config.supabase_anon_key;
+        window.__TENANT = {
+            id: config.tenant_key,
+            nama: config.nama,
+            alamat: config.alamat,
+            warna: config.warna || 'from-emerald-900 via-teal-900 to-emerald-950'
+        };
+        initTenantSupabaseClient();
+        console.log('✅ Tenant:', config.nama);
+        console.log('🔗 Supabase:', config.supabase_url);
+        return true;
+    } else {
+        console.error('❌ Tenant tidak ditemukan atau nonaktif:', tenantKey);
+        return false;
+    }
+}
+
+</script>
+
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -138,31 +213,19 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 .dash-counter-card-v2 .counter-label{color:#d4af37;font-weight:600}
 .dash-counter-card-v2 .icon-wrapper{font-size:1.75rem;color:#c9a84c}
 .sidebar-footer-text{font-family:'Playfair Display',serif;font-style:italic;letter-spacing:0.5px;line-height:1.8;text-align:justify}
-/* REVISI UI SIAP LPQ: padding ringkas + counter hijau mengkilap */
-.main-content-wrapper{padding:10px !important}
-.content-section.space-y-5 > :not([hidden]) ~ :not([hidden]){margin-top:10px !important}
-.card-3d{padding:10px 12px !important}
-#dashboard{gap:10px !important}
-#dashboard > :not([hidden]) ~ :not([hidden]){margin-top:10px !important}
-#dash-header-container{padding:12px !important}
-#dash-header-container > .relative.z-10{gap:10px !important}
-#dash-stats-container{width:100%;gap:8px !important}
-.dash-counter-card-v2{background:linear-gradient(145deg,#0b7a3b 0%,#059447 38%,#006b2f 72%,#034d24 100%) !important;border:1px solid rgba(134,255,157,.9) !important;border-radius:14px !important;padding:9px 11px !important;min-height:74px;color:#fff !important;box-shadow:0 5px 18px rgba(0,77,36,.28),inset 0 1px 0 rgba(255,255,255,.55),inset 0 -2px 8px rgba(0,0,0,.16) !important;position:relative;overflow:hidden}
-.dash-counter-card-v2::before{content:'';position:absolute;inset:0;background:linear-gradient(125deg,rgba(255,255,255,.26),rgba(255,255,255,0) 38%);pointer-events:none}
-.dash-counter-card-v2 .icon-wrapper{color:#fff !important;text-shadow:0 1px 4px rgba(0,0,0,.25);font-size:1.45rem !important;position:relative;z-index:1}
-.dash-counter-card-v2 .counter-value{color:#fff !important;text-shadow:0 1px 4px rgba(0,0,0,.28);position:relative;z-index:1}
-.dash-counter-card-v2 .counter-label{color:#ecfff1 !important;opacity:1 !important;position:relative;z-index:1}
-.dash-quran-link{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:68px;padding:7px 14px;border-radius:16px;border:1px solid rgba(6,95,70,.18);background:linear-gradient(135deg,rgba(240,253,244,.98),rgba(220,252,231,.94));box-shadow:0 5px 16px rgba(6,95,70,.10);color:#065f46;text-decoration:none;transition:transform .2s ease,box-shadow .2s ease}
-.dash-quran-link:hover{transform:translateY(-2px);box-shadow:0 9px 20px rgba(6,95,70,.16)}
-.dash-quran-link:active{transform:scale(.985)}
-.dash-quran-link img{width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 3px 5px rgba(0,0,0,.18))}
-.dash-quran-link .quran-text{font-size:14px;font-weight:800;line-height:1.25;text-align:left}
-.dash-quran-link .quran-arrow{margin-left:auto;font-size:18px}
-@media(max-width:768px){.main-content-wrapper{padding:8px !important}.card-3d{padding:9px 10px !important}.dash-counter-card-v2{padding:8px 9px !important;min-height:70px}.dash-counter-card-v2 .counter-value{font-size:20px !important}.dash-counter-card-v2 .counter-label{font-size:10px !important}.dash-quran-link{min-height:62px}.dash-quran-link img{width:52px;height:52px}.dash-quran-link .quran-text{font-size:13px}}
-@media(max-width:480px){.main-content-wrapper{padding:6px !important}.card-3d{padding:8px !important}.dash-counter-card-v2{padding:7px 8px !important;min-height:66px;border-radius:12px}.dash-counter-card-v2 .icon-wrapper{font-size:1.2rem !important}.dash-counter-card-v2 .counter-value{font-size:18px !important}.dash-counter-card-v2 .counter-label{font-size:9px !important;letter-spacing:.2px}.dash-quran-link{min-height:58px;padding:5px 10px}.dash-quran-link img{width:48px;height:48px}.dash-quran-link .quran-text{font-size:12px}}
+
+/* REFERENSI 1 - compact/mobile spacing */
+.main-content-wrapper{padding-top:12px!important;padding-bottom:12px!important}
+.content-section{margin-top:0!important}
+.content-section.space-y-5> :not([hidden])~ :not([hidden]){margin-top:10px!important}
+@media(max-width:768px){.main-content-wrapper{padding:8px!important}.content-section.space-y-5> :not([hidden])~ :not([hidden]){margin-top:7px!important}.card-3d{padding:10px 12px!important}}
 </style>
 </head>
 <body id="app-body" class="bg-gradient-to-br from-slate-100 via-emerald-50/40 to-slate-100 font-sans text-slate-800 min-h-screen">
+
+<!-- ============================================================ -->
+<!-- SPLASH SCREEN                                                -->
+<!-- ============================================================ -->
 <div id="splash-screen" class="fixed inset-0 bg-gradient-to-br from-emerald-900 via-teal-900 to-emerald-950 z-[9999] flex flex-col items-center justify-center p-6 text-center transition-opacity duration-700">
 <div class="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#34d399_1px,transparent_1px)] [background-size:16px_16px]"></div>
 <div class="relative z-10 space-y-6 max-w-lg">
@@ -177,11 +240,17 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <p class="text-amber-300/80 font-medium text-[10px] mt-1">Founder: Ahmad Fathunnur</p>
 <p class="text-amber-300/70 text-[10px]"><i class="fa-brands fa-whatsapp mr-1"></i> 083198740074</p>
 </div></div></div>
+
+<!-- ============================================================ -->
+<!-- LOGIN SCREEN (Mode Aplikasi Biasa)                           -->
+<!-- ============================================================ -->
 <div id="login-screen" class="fixed inset-0 bg-gradient-to-tr from-emerald-950 via-teal-900 to-emerald-900 z-[9000] flex items-center justify-center p-4" style="display:none">
 <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
 <div class="relative bg-white/90 backdrop-blur-xl rounded-3xl p-8 max-w-md w-full shadow-2xl border-2 border-amber-400/40 space-y-6">
 <button onclick="keluarSeketika()" class="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 font-bold text-lg transition shadow-sm border border-slate-200 btn-biasa"><i class="fa-solid fa-xmark"></i></button>
-<div class="text-center space-y-3 pt-2"><div class="inline-block animate-wave-medium"><img id="login-logo" src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" class="w-20 h-20 mx-auto object-contain drop-shadow-md rounded-full border-2 border-emerald-200 p-1"></div><h2 id="login-nama-tpq" class="text-xl font-extrabold text-emerald-950 tracking-wide">SIAP LPQ</h2><p class="text-sm text-slate-600 font-medium">Sistem Informasi Administrasi &amp; Prestasi Lembaga Pendidikan Al-Qur'an</p></div>
+<div class="text-center space-y-3 pt-2"><div class="inline-block animate-wave-medium"><img id="login-logo" src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" class="w-20 h-20 mx-auto object-contain drop-shadow-md rounded-full border-2 border-emerald-200 p-1"></div><h2 id="login-nama-tpq" class="text-xl font-extrabold text-emerald-950 tracking-wide">SIAP LPQ</h2><p class="text-sm text-slate-600 font-medium">Sistem Informasi Administrasi &amp; Prestasi Lembaga Pendidikan Al-Qur'an</p>
+<p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-shield-halved text-amber-500"></i> Admin? <a href="?admin=true" class="text-amber-600 font-semibold hover:underline">Klik di sini</a></p>
+</div>
 <form onsubmit="handleLogin(event)" class="space-y-4 text-sm">
 <div><label class="block font-semibold mb-1 text-slate-700">Tipe Pengguna</label><select id="login-role" class="w-full border rounded-xl p-3 outline-emerald-600 bg-white font-medium shadow-inner"><option value="Kepala">Kepala</option><option value="Bendahara">Bendahara</option><option value="Guru">Guru</option><option value="Wali Santri">Wali Santri</option></select></div>
 <div><label class="block font-semibold mb-1 text-slate-700">Username</label><input type="text" id="login-username" required placeholder="Username" class="w-full border rounded-xl p-3 outline-emerald-600 shadow-inner"></div>
@@ -191,6 +260,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 </form>
 <div id="login-error" class="text-red-500 text-xs text-center hidden"></div>
 </div></div>
+
+<!-- ============================================================ -->
+<!-- MAIN APP CONTAINER                                           -->
+<!-- ============================================================ -->
 <div id="main-app-container" class="flex h-screen overflow-hidden opacity-0" style="display:none">
 <aside id="app-sidebar" class="w-64 bg-gradient-to-b from-emerald-900 via-emerald-950 to-teal-950 text-white flex flex-col shadow-2xl border-r border-emerald-800/50 absolute md:relative z-30 h-full transition-transform duration-300 -translate-x-full md:-translate-x-full" style="box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 20px rgba(0,0,0,0.3);">
 <div class="p-5 flex items-center justify-between border-b border-emerald-800/60 bg-emerald-950/40">
@@ -203,17 +276,16 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <div class="flex items-center gap-2"><button class="text-amber-300 text-lg hover:text-amber-200 btn-biasa p-1.5 rounded-xl" onclick="toggleSidebar(event)"><i class="fa-solid fa-bars"></i></button><div><h1 id="page-title" class="text-xl md:text-2xl font-bold text-amber-300 drop-shadow-lg tracking-wide">Dashboard LPQ</h1><p class="text-[10px] font-semibold text-emerald-200 tracking-wider uppercase mt-0"><i class="fa-solid fa-mosque mr-1"></i>SISTEM INFORMASI ADMINISTRASI &amp; PRESTASI LPQ</p></div></div>
 <div class="flex items-center gap-2"><span id="user-badge" class="text-xs font-bold bg-amber-100 text-amber-900 px-2.5 py-1 rounded-xl border border-amber-300 shadow-sm"></span><span id="header-tpq-label" class="text-[11px] font-bold bg-gradient-to-r from-amber-400 to-amber-500 text-emerald-900 px-3 py-1 rounded-xl shadow-md border border-amber-300/30 tracking-wide hidden sm:inline-block">TPQ NU 04 AL IHSAN</span></div></header>
 <div class="main-content-wrapper p-5 md:p-6 flex-1 space-y-5">
+
+<!-- ============================================================ -->
+<!-- SECTION: DASHBOARD                                           -->
+<!-- ============================================================ -->
 <section id="dashboard" class="content-section space-y-5">
 <div id="dash-header-container" class="relative rounded-3xl p-5 md:p-8 shadow-2xl overflow-hidden border-2 border-amber-400/30 card-3d dash-counter-bg-v3" style="color:#f5e6c8;">
 <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-100 animate-wave-medium"><img id="dash-logo-animasi" src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" class="w-56 h-56 md:w-72 md:h-72 object-contain filter brightness-100 drop-shadow-2xl opacity-100" style="opacity:0.15;"></div>
 <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-5 text-center md:text-left">
 <div class="space-y-2"><h2 id="dash-nama" class="text-xl md:text-3xl font-extrabold text-amber-300 drop-shadow-lg">TPQ NU 04 AL IHSAN</h2><p id="dash-alamat" class="text-emerald-200 text-sm font-medium"><i class="fa-solid fa-location-dot mr-1.5 text-amber-400"></i> Alamat Lembaga</p><p class="text-xs text-emerald-200 font-medium">Metode: <span id="dash-metode" class="font-semibold text-amber-300"></span> | Kepala: <span id="dash-kepala" class="font-semibold text-amber-300"></span></p></div>
 <div id="dash-stats-container" class="flex flex-wrap justify-center gap-3 items-center">
-<a class="dash-quran-link" href="https://tanzil.net/" target="_blank" rel="noopener noreferrer" aria-label="Klik untuk membaca Al-Qur'an">
-  <img src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" alt="Al-Qur'an">
-  <span class="quran-text">Klik untuk membaca Al-Qur'an</span>
-  <i class="fa-solid fa-chevron-right quran-arrow" aria-hidden="true"></i>
-</a>
 <div class="dash-counter-card-v2"><div class="icon-wrapper"><i class="fa-solid fa-users-rectangle"></i></div><div class="text-left"><p class="counter-label text-amber-300 text-xs uppercase font-bold">Jumlah santri</p><h3 id="stat-total-santri" class="counter-value text-amber-100 text-2xl font-bold">0</h3></div></div>
 <div id="stat-ustadz-card-top" class="dash-counter-card-v2"><div class="icon-wrapper"><i class="fa-solid fa-chalkboard-user"></i></div><div class="text-left"><p class="counter-label text-amber-300 text-xs uppercase font-bold">Jumlah guru</p><h3 id="stat-ustadz" class="counter-value text-amber-100 text-2xl font-bold">0</h3></div></div>
 <div id="stat-setoran-card" class="dash-counter-card-v2 hidden"><div class="icon-wrapper"><i class="fa-solid fa-hand-holding-dollar"></i></div><div class="text-left"><p class="counter-label text-amber-300 text-xs uppercase font-bold">💸 Setoran ke Bendahara</p><h3 id="stat-setoran-guru" class="counter-value text-amber-100 text-2xl font-bold">Rp 0</h3><p class="text-[10px] text-amber-200 font-medium" id="stat-setoran-tanggal">Hari ini</p></div></div>
@@ -244,6 +316,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <form onsubmit="kirimPesanDariWali(event)" class="space-y-2"><textarea id="wali_pesan_text" rows="3" required placeholder="Tulis pesan..." class="w-full border rounded-xl p-2.5 outline-emerald-600 text-sm"></textarea><div class="flex justify-end"><button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition btn-biasa"><i class="fa-solid fa-paper-plane mr-1.5"></i> Kirim</button></div></form>
 <div class="pt-3 border-t border-slate-200"><h4 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Riwayat Pesan</h4><div id="list-pesan-wali-pribadi" class="space-y-3 max-h-60 overflow-y-auto"></div></div></div>
 </section>
+
+<!-- ============================================================ -->
+<!-- SECTION: PROFIL                                              -->
+<!-- ============================================================ -->
 <section id="profil" class="content-section hidden space-y-5">
 <div class="bg-white/90 backdrop-blur p-6 rounded-3xl shadow-xl border border-slate-200/80 max-w-xl space-y-4 card-3d">
 <h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-gear text-emerald-600"></i> Pengaturan Profil</h3>
@@ -260,9 +336,17 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <div><label class="block font-semibold mb-1 text-slate-700">Logo</label><input type="file" id="p_logo_file" accept="image/*" class="w-full border rounded-xl p-2 text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"></div>
 <button type="submit" class="w-full bg-emerald-700 text-white py-2.5 rounded-xl font-bold shadow hover:bg-emerald-800 transition btn-biasa">Simpan Profil</button></form>
 <div class="pt-3 border-t border-slate-200"><button onclick="cetakPdfProfil()" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-bold shadow transition btn-biasa flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> Download Profil</button></div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: KURIKULUM                                           -->
+<!-- ============================================================ -->
 <section id="kurikulum" class="content-section hidden space-y-5">
 <div class="flex justify-between items-center bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d"><div><h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-book-open mr-2 text-emerald-600"></i>Kurikulum TPQ</h2><p class="text-sm text-slate-500">Kurikulum lengkap Pra TK s.d Kelas Al-Qur'an</p></div></div>
 <div id="kurikulum-container" class="space-y-5"></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: USTADZ                                              -->
+<!-- ============================================================ -->
 <section id="ustadz" class="content-section hidden space-y-5">
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
 <h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-chalkboard-user mr-2 text-emerald-600"></i>Data Guru</h2>
@@ -274,6 +358,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <div class="table-wrapper wide-table">
 <table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">NIG</th><th class="p-3">Nama</th><th class="p-3">WA</th><th class="p-3">Jilid</th><th class="p-3">TMT</th><th class="p-3">Masa</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody id="table-ustadz-body"></tbody></table>
 </div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: SANTRI                                              -->
+<!-- ============================================================ -->
 <section id="santri" class="content-section hidden space-y-5">
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
 <h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-users mr-2 text-emerald-600"></i>Data Santri</h2>
@@ -287,6 +375,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <div class="table-wrapper wide-table">
 <table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">NIS</th><th class="p-3">Nama</th><th class="p-3">Jilid</th><th class="p-3">Alamat</th><th class="p-3">Wali/WA</th><th class="p-3">Guru</th><th class="p-3">Tgl Masuk</th><th class="p-3 text-center">Download Prestasi</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody id="table-santri-body"></tbody></table>
 </div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: PRESTASI                                            -->
+<!-- ============================================================ -->
 <section id="prestasi" class="content-section hidden space-y-5">
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
 <div><h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-book-open mr-2 text-emerald-600"></i>Buku Prestasi</h2><p class="text-sm text-slate-500">Catat prestasi harian santri</p></div>
@@ -295,6 +387,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <div class="table-wrapper extra-wide">
 <table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">Tanggal</th><th class="p-3">Santri</th><th class="p-3">Jilid</th><th class="p-3">Guru</th><th class="p-3">Klasikal</th><th class="p-3" id="th-metode-prestasi">Metode</th><th class="p-3">Do'a Harian</th><th class="p-3">Surat Pendek</th><th class="p-3">Fasholatan</th><th class="p-3">Tajwid</th><th class="p-3">Ghorib</th><th class="p-3">Al-Qur'an</th><th class="p-3">Kurikulum Tambahan</th></tr></thead><tbody id="table-prestasi-body"></tbody></table>
 </div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: KENAIKAN                                            -->
+<!-- ============================================================ -->
 <section id="kenaikan" class="content-section hidden space-y-5">
 <div class="flex justify-between items-center bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
 <h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-award mr-2 text-emerald-600"></i>Kenaikan Jilid</h2>
@@ -303,6 +399,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <div class="table-wrapper wide-table">
 <table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">Santri</th><th class="p-3">Target</th><th class="p-3" id="th-metode-kenaikan">Metode</th><th class="p-3">Do'a Harian</th><th class="p-3">Fasholatan</th><th class="p-3">Surat Pendek</th><th class="p-3">Tajwid</th><th class="p-3">Ghorib</th><th class="p-3">Status</th><th class="p-3 text-center">Sertifikat</th></tr></thead><tbody id="table-kenaikan-body"></tbody></table>
 </div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: PEMBAYARAN                                          -->
+<!-- ============================================================ -->
 <section id="pembayaran" class="content-section hidden space-y-5">
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
 <div><h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-wallet mr-2 text-emerald-600"></i>Pembayaran & Kas</h2><p class="text-sm text-slate-500">Catat pembayaran santri</p></div>
@@ -323,6 +423,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <div id="filter-hasil-container" class="mt-2 pt-2 border-t border-slate-200 hidden"><div class="flex justify-between items-center mb-1"><span class="text-sm font-semibold text-slate-600"><i class="fa-solid fa-list-check text-emerald-600 mr-1"></i> Hasil: <span id="filter-hasil-jumlah" class="text-emerald-800 font-bold">0</span></span><span id="filter-hasil-total" class="text-sm font-bold text-emerald-800">Total: Rp 0</span></div>
 <div class="table-wrapper"><table class="w-full text-left border-collapse text-xs"><thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b sticky top-0"><tr><th class="p-1.5">No</th><th class="p-1.5">Tanggal</th><th class="p-1.5">NIS</th><th class="p-1.5">Nama</th><th class="p-1.5">Jilid</th><th class="p-1.5">Jenis</th><th class="p-1.5">Ket</th><th class="p-1.5 text-right">Jumlah</th></tr></thead><tbody id="filter-hasil-body"></tbody></table></div>
 <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 mt-2"><button onclick="viewPdfFilterTransaksi()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-file-pdf"></i> Download PDF</button></div></div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: MUTASI                                              -->
+<!-- ============================================================ -->
 <section id="mutasi" class="content-section hidden space-y-5">
 <div class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 card-3d"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2"><div><h2 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-coins text-emerald-600"></i> Kas Keluar Masuk</h2><p class="text-sm text-slate-500">Kelola arus kas</p></div><div class="flex flex-wrap gap-2"><button onclick="openModal('modalKasMasuk')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-arrow-down"></i> Masuk</button><button onclick="openModal('modalKasKeluar')" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-arrow-up"></i> Keluar</button></div></div></div>
 <div class="grid grid-cols-2 md:grid-cols-4 gap-2"><div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-3 border border-emerald-200/50 shadow-sm card-3d"><p class="text-xs text-slate-500 font-medium uppercase">Total</p><p id="ringkasan-total-transaksi" class="text-xl font-extrabold text-emerald-900 mt-0.5">0</p></div>
@@ -345,6 +449,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <h3 class="text-base font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-users text-emerald-600"></i> Daftar Penerima per Tanggal</h3>
 <div class="flex items-center gap-2"><label class="text-xs font-semibold text-slate-700">📅 Bulan:</label><select id="filter-bulan-penerima" onchange="renderDaftarPenerima()" class="border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm"></select></div></div>
 <div id="daftar-penerima-body" class="space-y-4 max-h-96 overflow-y-auto pr-1"></div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: PESAN WALI                                          -->
+<!-- ============================================================ -->
 <section id="pesan_wali" class="content-section hidden space-y-5">
 <div class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 card-3d"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2"><div><h2 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-comments text-emerald-600"></i> Pesan Wali</h2><p class="text-sm text-slate-500">Kelola komunikasi</p></div><button onclick="refreshPesanWali()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-rotate"></i> Refresh</button></div></div>
 <div class="grid grid-cols-3 gap-2"><div class="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-3 border border-slate-200/50 shadow-sm card-3d text-center"><p class="text-xs text-slate-500 font-medium uppercase">Total</p><p id="ringkasan-total-pesan" class="text-2xl font-extrabold text-slate-800 mt-0.5">0</p></div>
@@ -355,11 +463,19 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <select id="filter-pesan-urut" onchange="renderPesanWali()" class="border rounded-xl p-1.5 outline-emerald-600 text-sm bg-white min-w-[110px]"><option value="terbaru">Terbaru</option><option value="terlama">Terlama</option></select>
 <span class="text-sm text-slate-500 font-medium ml-auto">Menampilkan <span id="filter-pesan-jumlah-text">0</span></span></div></div>
 <div id="list-pesan-wali-admin" class="space-y-3"></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: INFORMASI                                           -->
+<!-- ============================================================ -->
 <section id="informasi" class="content-section hidden space-y-5">
 <div class="flex justify-between items-center bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
 <h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-bullhorn mr-2 text-emerald-600"></i>Papan Informasi</h2>
 <button onclick="openModal('modalInfo')" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-sm font-semibold shadow transition btn-biasa"><i class="fa-solid fa-bullhorn mr-2"></i> Buat</button></div>
 <div id="list-informasi" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: USER                                                -->
+<!-- ============================================================ -->
 <section id="user" class="content-section hidden space-y-5">
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
 <div><h2 class="text-lg font-bold text-emerald-900"><i class="fa-solid fa-user-gear mr-2 text-emerald-600"></i>Management User</h2><p class="text-sm text-slate-500">Kelola hak akses</p></div>
@@ -375,6 +491,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <div class="table-wrapper wide-table">
 <table class="w-full text-left border-collapse"><thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-bold border-b"><tr><th class="p-3">No</th><th class="p-3">Username</th><th class="p-3">Nama</th><th class="p-3">Password</th><th class="p-3">Role</th><th class="p-3">NIS Ref</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody id="table-user-body"></tbody></table>
 </div></div></section>
+
+<!-- ============================================================ -->
+<!-- SECTION: BACKUP                                              -->
+<!-- ============================================================ -->
 <section id="backup" class="content-section hidden space-y-5">
 <div class="bg-white/90 backdrop-blur p-5 rounded-3xl shadow-xl border border-slate-200/80 card-3d">
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -425,6 +545,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <div id="backup-history-list" class="space-y-2 max-h-48 overflow-y-auto"><p class="text-sm text-slate-400 italic">Belum ada riwayat backup.</p></div>
 </div>
 </section>
+
+<!-- ============================================================ -->
+<!-- SECTION: UTILITY                                             -->
+<!-- ============================================================ -->
 <section id="utility" class="content-section hidden space-y-5">
 <div class="bg-white/90 backdrop-blur p-6 rounded-3xl shadow-xl border border-slate-200/80 max-w-3xl mx-auto space-y-5 card-3d">
 <div class="text-center border-b border-slate-200 pb-4"><span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold uppercase">Sambutan Founder</span><h2 class="text-xl font-extrabold text-emerald-900 mt-2">Profil Founder</h2></div>
@@ -433,9 +557,12 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 <p class="text-center font-medium">Assalamualaikum Wr. Wb.</p>
 <p style="text-align:justify" class="text-slate-700 font-normal">Bismillah Alhamdulillah wassolatu Wassalamu ala Rosulillah, Sayidina Muhammad ibni abdillah, Lahaulaa wa laa quwwata Illa Billah, Am'a ba'd.<br><br>Para pengguna Aplikasi, saya mengucapkan banyak terimakasih, semoga aplikasi ini dapat membantu mempermudah para guru di lembaga <span id="utility-tpq-name" class="font-bold text-emerald-900"></span>, dan bermanfaat untuk semua, Insyaallah Aplikasi ini akan terus dikembangkan, dengan melihat kebutuhan yang ada.<br><br>Kami membuat aplikasi ini dengan latar belakang melihat digitalisasi pada berbagai hal, sehingga kami tidak ingin lembaga pendidikan Al Qur'an dianggap suatu lembaga yang tertinggal.<br><br>saya selaku pengajar di Lembaga Pendidikan Al Qur'an (LPQ), tau persis apa yang dialami para guru ketika menjalankan KBM.<br><br>Dan akhirnya semoga Allah meridhoi semua yang kami upaya kan.</p></div>
 <div class="text-right pt-2 space-y-1"><p class="font-bold text-slate-800">Hormat Kami,</p><p class="text-emerald-700 font-extrabold text-base mt-2">Ahmad Fathunnur</p><p class="text-sm text-slate-500 font-medium"><a href="#" onclick="openWhatsAppFounder()" class="text-emerald-700 font-bold hover:underline"><i class="fa-brands fa-whatsapp text-emerald-600"></i> 083198740074</a></p></div></div></section>
+
 </div></main></div>
 
-<!-- MODALS -->
+<!-- ============================================================ -->
+<!-- MODALS - SEMUA SAMA PERSIS DENGAN ASLI                       -->
+<!-- ============================================================ -->
 <div id="modalViewDokumen" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm hidden flex justify-center items-center z-[99999] p-4"><div class="modal-content"><div class="modal-header"><h3><i class="fa-solid fa-file-pdf text-emerald-600"></i> <span id="view-dokumen-title">Dokumen</span></h3><div class="btn-group"><button onclick="downloadPDF()" class="btn-download" id="btn-download-pdf"><i class="fa-solid fa-file-pdf"></i> Download PDF</button><button onclick="downloadJPG()" class="btn-download" id="btn-download-jpg" style="background:#d97706;"><i class="fa-solid fa-image"></i> Download JPG</button><button onclick="closeViewDokumen()" class="btn-close"><i class="fa-solid fa-xmark"></i> Tutup</button></div></div><div class="modal-body" id="view-dokumen-body"></div></div></div>
 <div id="modalSantri" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3 max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100"><h3 id="modalSantriTitle" class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-user-plus text-emerald-600"></i> Form Santri</h3><form id="formSantri" onsubmit="saveSantri(event)" class="space-y-2 text-sm"><input type="hidden" id="s_edit_id"><div><label class="block font-semibold mb-0.5 text-slate-700">NIS</label><input type="text" id="s_nis" placeholder="2026001" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_nama"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Nama</label><input type="text" id="s_nama" required class="w-full border rounded-xl p-2.5 outline-emerald-600" autofocus data-next="s_jilid"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Jilid</label><select id="s_jilid" onchange="autoSelectGuru(this.value)" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_alamat"><option>Pra TK</option><option>Jilid 1</option><option>Jilid 2</option><option>Jilid 3</option><option>Jilid 4</option><option>Jilid 5</option><option>Jilid 6</option><option>Kelas Al-Qur'an</option></select></div><div><label class="block font-semibold mb-0.5 text-slate-700">Alamat</label><input type="text" id="s_alamat" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_tgl_masuk"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Tgl Masuk</label><input type="date" id="s_tgl_masuk" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_ortu"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Wali</label><input type="text" id="s_ortu" placeholder="Bpk. Budi" class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_wa"></div><div><label class="block font-semibold mb-0.5 text-slate-700">WA Wali</label><input type="text" id="s_wa" placeholder="08xxxxxxxx" required class="w-full border rounded-xl p-2.5 outline-emerald-600" data-next="s_guru"></div><div><label class="block font-semibold mb-0.5 text-slate-700">Guru</label><input type="text" id="s_guru" readonly class="w-full border rounded-xl p-2.5 bg-slate-100 font-semibold text-emerald-800"></div><div class="flex justify-end gap-2 pt-3"><button type="button" onclick="closeModal('modalSantri')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa">Batal</button><button type="submit" id="btn_submit_santri" class="px-4 py-2 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 shadow btn-biasa">Simpan</button></div></form></div></div>
 <div id="modalPrestasi" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4"><div class="bg-white rounded-3xl max-w-3xl w-full p-6 space-y-3 max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100"><div class="flex justify-between items-center border-b border-slate-200 pb-2"><div><h3 class="text-lg font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-book-open text-emerald-600"></i> Catat Prestasi</h3><p class="text-sm text-slate-500">Catat prestasi harian santri</p></div><span class="text-sm bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-calendar-day mr-1"></i> <span id="prestasi-tanggal-text"></span></span></div><form onsubmit="savePrestasi(event)" class="space-y-3"><div><label class="block font-bold text-slate-700 text-sm mb-1"><i class="fa-solid fa-user-graduate text-emerald-600 mr-1"></i> Pilih Santri</label><div class="searchable-select-wrapper"><input type="text" id="search_santri_prestasi" placeholder="Ketik nama atau NIS..." oninput="handleModalSearchInput('search_santri_prestasi','p_santri_dropdown','p_santri_val')" autocomplete="off" class="w-full border rounded-xl p-2.5 outline-emerald-600 text-sm bg-emerald-50/50 focus:bg-white transition" data-next="p_klasikal"><div id="p_santri_dropdown" class="searchable-dropdown-list"></div><input type="hidden" id="p_santri_val"></div></div><div id="prestasi-santri-info"><div class="bg-gradient-to-r from-emerald-50 to-teal-50/50 rounded-2xl p-3 border border-emerald-200/70"><div class="flex justify-between items-center"><div><h4 id="prestasi-santri-nama" class="font-bold text-emerald-900 text-base">-</h4><div class="flex items-center gap-2 mt-1 text-sm text-slate-600"><span><span class="font-semibold text-slate-700">NIS:</span> <span id="prestasi-santri-nis">-</span></span><span><span class="font-semibold text-slate-700">Jilid:</span> <span id="prestasi-santri-jilid" class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-semibold">-</span></span><span><span class="font-semibold text-slate-700">Guru:</span> <span id="prestasi-santri-guru">-</span></span></div></div><div class="text-right"><span class="text-sm text-slate-400">Terakhir</span><p class="text-sm font-semibold text-emerald-800" id="prestasi-santri-terakhir">-</p></div></div></div><div class="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/70"><div class="flex items-center gap-2 mb-1.5"><i class="fa-solid fa-clock-rotate-left text-emerald-600"></i><span class="text-sm font-bold text-slate-700 uppercase">Hasil Terakhir</span></div><div class="space-y-1 text-sm"><div><span class="font-medium text-slate-600">📖 Klasikal:</span> <span id="prev_klasikal" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 <span id="label-prev-metode">Metode</span>:</span> <span id="prev_halaman" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Do'a Harian:</span> <span id="prev_doa" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Surat Pendek:</span> <span id="prev_surat" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Fasholatan:</span> <span id="prev_alquran" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Tajwid:</span> <span id="prev_sholat" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Ghorib:</span> <span id="prev_tajwid" class="text-slate-800">-</span></div><div><span class="font-medium text-slate-600">📖 Al-Qur'an:</span> <span id="prev_tambahan" class="text-slate-800">-</span></div></div></div></div><div id="prestasi-input-container"><div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-4 border-2 border-emerald-200/50"><div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-pen-to-square text-emerald-600 text-lg"></i><span class="text-base font-bold text-emerald-900">Input Hari Ini</span><span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold ml-auto"><i class="fa-solid fa-check-circle mr-1"></i> Isi yang dipelajari</span></div><div class="grid grid-cols-1 md:grid-cols-2 gap-2"><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">1</span> Klasikal</label><input type="text" id="p_klasikal" placeholder="Contoh: Jilid 3 Hal 5" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_halaman"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">2</span> <span id="label-metode-prestasi">Metode</span></label><input type="text" id="p_halaman" placeholder="Contoh: Jilid 2 Hal 12" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_doa"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">3</span> Do'a Harian</label><input type="text" id="p_doa" placeholder="Contoh: Doa Masuk Masjid" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_surat"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">4</span> Surat Pendek</label><input type="text" id="p_surat" placeholder="Contoh: An-Nas" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_alquran"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">5</span> Fasholatan</label><input type="text" id="p_alquran" placeholder="Contoh: Niat wudhu" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_sholat"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">6</span> Tajwid</label><input type="text" id="p_sholat" placeholder="Contoh: Hukum Nun Mati" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_tajwid"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">7</span> Ghorib</label><input type="text" id="p_tajwid" placeholder="Contoh: Waqof lazim" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm" data-next="p_tambahan"></div><div><label class="block font-semibold text-slate-700 text-sm mb-0.5"><span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">8</span> Al-Qur'an</label><input type="text" id="p_tambahan" placeholder="Contoh: Juz 1 Hal 10" class="w-full border rounded-xl p-2 outline-emerald-600 text-sm bg-white shadow-sm"></div></div></div></div><div class="flex justify-end gap-2 pt-3 border-t border-slate-200"><button type="button" onclick="closeModal('modalPrestasi')" class="px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 btn-biasa"><i class="fa-solid fa-xmark"></i> Batal</button><button type="reset" onclick="resetFormPrestasi()" class="px-4 py-2 border border-amber-300 rounded-xl font-medium text-amber-700 hover:bg-amber-50 btn-biasa"><i class="fa-solid fa-rotate"></i> Reset</button><button type="submit" class="px-4 py-2 bg-gradient-to-r from-emerald-700 to-teal-800 text-white rounded-xl font-bold hover:shadow-lg btn-biasa"><i class="fa-solid fa-floppy-disk"></i> Simpan</button></div></form></div></div>
@@ -453,24 +580,43 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 
 <script>
 // ============================================================
-// KONFIGURASI SUPABASE & DATA CACHE
+// KONFIGURASI SUPABASE - MENGGUNAKAN TENANT
 // ============================================================
-// MULTI-TENANT BOOTSTRAP - ADMIN SUPABASE
-// ============================================================
-var ADMIN_SUPABASE_URL='https://wijyhdcdhpimgzcfpiou.supabase.co';
-var ADMIN_SUPABASE_ANON_KEY='sb_publishable_pwnbJfrRWyhcjJkBkj_pyA__9IUZDuz';
-var DEFAULT_TENANT_KEY='LPQ0001';
-var TENANT_READY=false;
-async function loadTenantConfig(tenantKey){try{var mainClient=supabase.createClient(ADMIN_SUPABASE_URL,ADMIN_SUPABASE_ANON_KEY);var result=await mainClient.rpc('get_tenant_config',{p_tenant_key:tenantKey});if(result.error){console.error('❌ Gagal mengambil konfigurasi tenant:',result.error);return null}var data=result.data;if(!data||data.success!==true){console.warn('⚠️ Tenant tidak ditemukan:',tenantKey);return null}return data}catch(e){console.error('Error load tenant:',e);return null}}
-async function initTenantFromURL(){try{var params=new URLSearchParams(window.location.search),tenantKey=params.get('tenant')||window.location.hash.replace('#','')||DEFAULT_TENANT_KEY;var config=await loadTenantConfig(tenantKey);if(!config){return false}window.SUPABASE_URL=config.supabase_url;window.SUPABASE_ANON_KEY=config.supabase_anon_key;window.__TENANT={id:config.tenant_key,nama:config.nama,alamat:config.alamat,warna:config.warna||'from-emerald-900 via-teal-900 to-emerald-950'};supabaseClient=supabase.createClient(window.SUPABASE_URL,window.SUPABASE_ANON_KEY);TENANT_READY=true;console.log('✅ Tenant:',config.nama);console.log('🔗 Supabase:',config.supabase_url);return true}catch(e){console.error('❌ Inisialisasi tenant gagal:',e);return false}}
+var SUPABASE_URL = window.SUPABASE_URL || '';
+var SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || '';
+var supabaseClient = null;
+function initTenantSupabaseClient(){
+    if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) throw new Error('Konfigurasi Supabase tenant belum tersedia.');
+    SUPABASE_URL = window.SUPABASE_URL;
+    SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY;
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
 
 // ============================================================
-var SUPABASE_URL='https://aamqfpjjloxtigghvjhh.supabase.co';
-var SUPABASE_ANON_KEY='sb_publishable_kBBxSFf3y_S34mXU0NPfdg_NMdreHlr';
-var supabaseClient=null;
-try{supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn('Supabase init error:',e)}
-var db={profil:null,santri:[],prestasi:[],kenaikan:[],bayar:[],mutasi:[],ustadz:[],users:[],informasi:[],pesanWali:[],kurikulum:[],kegiatanLuar:[]};
-var currentUser=null,currentActiveSection='dashboard',appReady=false,sortMutasiField='tanggal',sortMutasiOrder='desc',currentPDFContent='',currentPDFFilename='dokumen.pdf';
+// DATA CACHE
+// ============================================================
+var db = {
+    profil: null,
+    rekapSantri: [],
+    santri: [],
+    prestasi: [],
+    kenaikan: [],
+    bayar: [],
+    mutasi: [],
+    ustadz: [],
+    users: [],
+    informasi: [],
+    pesanWali: [],
+    kurikulum: [],
+    kegiatanLuar: []
+};
+var currentUser = null;
+var currentActiveSection = 'dashboard';
+var appReady = false;
+var sortMutasiField = 'tanggal';
+var sortMutasiOrder = 'desc';
+var currentPDFContent = '';
+var currentPDFFilename = 'dokumen.pdf';
 
 // ============================================================
 // FUNGSI DASAR
@@ -506,21 +652,408 @@ var defaultKurikulum={'Pra TK':{doa_harian:['Doa akan belajar','Doa sesudah memb
 // ============================================================
 // LOAD DATA & LOGIN
 // ============================================================
-async function loadAllData(){try{updateSplash(5,'Menghubungi...');var profilData=null;try{var result=await supabaseClient.from('profil').select('*').limit(1).maybeSingle();if(!result.error&&result.data)profilData=result.data}catch(e){}updateSplash(15,'Profil...');if(!profilData){db.profil={nama:"TPQ NU 04 AL IHSAN",alamat:"Jl. Bahari No. 23, Masjid Tambaksari",tahunBerdiri:"2012",nisp:"311233240001",bernaung:"RMI NU",metode:"Tilawati",kepala:"Ky Ahmad Fathunnur, C.Eq",bendahara:"Ustadzah Siti Fatimah",bulanan:"30000",logo:"https://api.iconify.design/fluent-emoji-flat:open-book.svg"}}else{db.profil=profilData}updateAllLogos();updateMetodeLabels();var tables=['santri','prestasi','kenaikan','bayar','mutasi','ustadz','users','informasi','pesanWali','kurikulum','kegiatanLuar'];for(var i=0;i<tables.length;i++){var t=tables[i];updateSplash(20+(i/tables.length)*70,'Memuat '+t+'...');try{var result=await supabaseClient.from(t).select('*');db[t]=(result.error||!result.data)?[]:result.data}catch(e){db[t]=[]}}if(db.kurikulum.length===0){for(var key in defaultKurikulum){if(defaultKurikulum.hasOwnProperty(key)){db.kurikulum.push({jilid:key,data:defaultKurikulum[key],kurikulum_tambahan:defaultKurikulum[key].kurikulum_tambahan||''})}}}updateSplash(95,'Selesai!');appReady=true;return true}catch(e){console.error('Load error:',e);db.profil={nama:"TPQ NU 04 AL IHSAN",alamat:"Jl. Bahari No. 23, Masjid Tambaksari",tahunBerdiri:"2012",nisp:"311233240001",bernaung:"RMI NU",metode:"Tilawati",kepala:"Ky Ahmad Fathunnur, C.Eq",bendahara:"Ustadzah Siti Fatimah",bulanan:"30000",logo:"https://api.iconify.design/fluent-emoji-flat:open-book.svg"};updateAllLogos();updateMetodeLabels();appReady=true;return false}}
-document.addEventListener('DOMContentLoaded',function(){updateSplash(2,'Menyiapkan lembaga...');var timeout=setTimeout(function(){console.warn('⏱️ Timeout, force login');forceShowLogin()},12000);initTenantFromURL().then(function(tenantReady){if(!tenantReady){if(getEl('splash-status'))getEl('splash-status').textContent='Tenant tidak ditemukan.';forceShowLogin();clearTimeout(timeout);return}updateSplash(4,'Mulai...');return loadAllData()}).then(function(success){if(!TENANT_READY)return;updateSplash(92,'Sesi...');var sessionData=null;try{var raw=localStorage.getItem('tpq_session');if(raw)sessionData=JSON.parse(raw)}catch(e){}if(sessionData){try{var found=null;for(var i=0;i<db.users.length;i++){var u=db.users[i];if(u.username===sessionData.username&&u.password===sessionData.password&&u.role===sessionData.role){found=u;break}}if(found){currentUser=found;var login=getEl('login-screen'),main=getEl('main-app-container'),splash=getEl('splash-screen');if(login)login.style.display='none';if(main){main.style.display='flex';main.style.opacity='1'}if(splash){splash.style.opacity='0';setTimeout(function(){if(splash)splash.style.display='none'},400)}applyUserTheme(currentUser.role);setupSidebarByRole();renderAll();showSection('dashboard');clearTimeout(timeout);updateSplash(100,'Selamat datang!');setupSidebarEvents();initBackupInfo();return}}catch(e){}}forceShowLogin();clearTimeout(timeout)})});
-function handleLogin(e){e.preventDefault();try{var role=getVal('login-role'),user=getVal('login-username').trim(),pass=getVal('login-password').trim(),found=null;for(var i=0;i<db.users.length;i++){var u=db.users[i];if(u.username===user&&u.password===pass&&u.role===role){found=u;break}}if(found){currentUser=found;try{localStorage.setItem('tpq_session',JSON.stringify({username:found.username,password:found.password,role:found.role}))}catch(e){}var login=getEl('login-screen'),main=getEl('main-app-container'),splash=getEl('splash-screen');if(login)login.style.display='none';if(main){main.style.display='flex';main.style.opacity='1'}if(splash){splash.style.opacity='0';setTimeout(function(){if(splash)splash.style.display='none'},400)}applyUserTheme(currentUser.role);setupSidebarByRole();renderAll();showSection('dashboard');updateSplash(100,'Selamat datang!');setupSidebarEvents();initBackupInfo()}else{alert('❌ Username/Password/Role salah!')}}catch(e){alert('❌ Error: '+e.message)}}
-function keluarSeketika(){try{window.close()}catch(e){}window.location.href='about:blank'}
-function konfirmasiKeluar(){if(confirm("Yakin keluar?")){try{localStorage.removeItem('tpq_session')}catch(e){}window.location.href='about:blank'}}
-function showSection(id){try{currentActiveSection=id;var sections=document.querySelectorAll('.content-section');for(var i=0;i<sections.length;i++){sections[i].classList.add('hidden')}var el=getEl(id);if(el)el.classList.remove('hidden');var navLinks=document.querySelectorAll('.nav-link');for(var j=0;j<navLinks.length;j++){var l=navLinks[j];l.className="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa";if(l.getAttribute('onclick')&&l.getAttribute('onclick').indexOf(id)!==-1){l.className="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"}}var titles={dashboard:'Dashboard LPQ',profil:'Pengaturan Profil',kurikulum:'Kurikulum TPQ',ustadz:'Data Guru',santri:'Data Santri',prestasi:'Buku Prestasi',kenaikan:'Kenaikan Jilid',pembayaran:'Pembayaran & Kas',mutasi:'Kas Keluar Masuk',pesan_wali:'Pesan Wali Santri',informasi:'Papan Informasi',user:'Management User',backup:'Backup & Restore',utility:'Sambutan Founder'};if(titles[id]){var t=getEl('page-title');if(t)t.innerText=titles[id]}var sb=getEl('app-sidebar');if(sb&&!sb.classList.contains('-translate-x-full')){sb.classList.add('-translate-x-full')}var mainArea=getEl('main-content-area');if(mainArea){mainArea.scrollTop=0}if(id==='pembayaran'){setTimeout(function(){var btn=getEl('btn-catat-pembayaran');if(btn)btn.focus()},300)}setTimeout(function(){var sectionEl=getEl(id);if(sectionEl){var firstInput=sectionEl.querySelector('input:not([type="hidden"]), select, textarea');if(firstInput&&!firstInput.disabled){firstInput.focus()}}},300)}catch(e){}}
-function openModal(id){try{var el=getEl(id);if(el){el.classList.remove('hidden');setTimeout(function(){if(id==='modalPrestasi'){var input=getEl('search_santri_prestasi');if(input){input.focus()}setupAutoFocus('#modalPrestasi form')}else if(id==='modalSantri'){var namaInput=getEl('s_nama');if(namaInput){namaInput.focus()}setupAutoFocus('#modalSantri form')}else if(id==='modalKenaikan'){setupAutoFocus('#modalKenaikan form')}else if(id==='modalBayar'){setupAutoFocus('#modalBayar form')}else if(id==='modalKasMasuk'){setupAutoFocus('#modalKasMasuk form')}else if(id==='modalKasKeluar'){setupAutoFocus('#modalKasKeluar form')}else if(id==='modalUstadz'){setupAutoFocus('#modalUstadz form')}else if(id==='modalUser'){setupAutoFocus('#modalUser form')}else if(id==='modalInfo'){setupAutoFocus('#modalInfo form')}else if(id==='modalEditWali'){setupAutoFocus('#modalEditWali form')}else{var inp=el.querySelector('input:not([type="hidden"]), select, textarea');if(inp)inp.focus()}},100)}if(id==='modalSantri')autoSelectGuru(getVal('s_jilid'));if(id==='modalEditWali')loadDataWali()}catch(e){}}
-function closeModal(id){try{var el=getEl(id);if(el)el.classList.add('hidden')}catch(e){}}
-function applyUserTheme(role){try{var b=getEl('app-body'),s=getEl('app-sidebar'),header=getEl('dash-header-container');if(!b||!s)return;s.className='w-64 bg-gradient-to-b from-emerald-900 via-emerald-950 to-teal-950 text-white flex flex-col shadow-2xl border-r border-emerald-800/50 absolute md:relative z-30 h-full transition-transform duration-300 -translate-x-full md:-translate-x-full';if(header){header.className='relative rounded-3xl p-5 md:p-8 shadow-2xl overflow-hidden border-2 border-amber-400/30 card-3d dash-counter-bg-v3';header.style.color='#f5e6c8'}if(role==='Kepala'){b.className="bg-gradient-to-br from-slate-100 via-emerald-50/40 to-slate-100 font-sans text-slate-800 min-h-screen"}else if(role==='Bendahara'){b.className="bg-gradient-to-br from-amber-50 via-yellow-50/40 to-amber-100 font-sans text-slate-800 min-h-screen"}else if(role==='Guru'){b.className="bg-gradient-to-br from-sky-50 via-blue-50/40 to-sky-100 font-sans text-slate-800 min-h-screen"}else if(role==='Wali Santri'){b.className="bg-gradient-to-br from-purple-50 via-fuchsia-50/40 to-pink-100 font-sans text-slate-800 min-h-screen"}}catch(e){}}
-function setupSidebarByRole(){try{var nav=getEl('sidebar-nav'),ub=getEl('user-badge');if(ub)ub.innerText=currentUser.nama+' ('+currentUser.role+')';if(!nav)return;var html='';if(currentUser.role==='Kepala'){html=getSidebarItems('Kepala')}else if(currentUser.role==='Bendahara'){html=getSidebarItems('Bendahara')}else if(currentUser.role==='Guru'){html=getSidebarItems('Guru')}else if(currentUser.role==='Wali Santri'){html=getSidebarItems('Wali Santri')}if(nav)nav.innerHTML=html;var btnContainer=getEl('btn-guru-container');if(btnContainer){btnContainer.style.display=(currentUser.role==='Guru')?'none':'flex'}updateSidebarCopyright();if(nav)nav.scrollTop=0}catch(e){}}
-function getSidebarItems(role){var items='';if(role==='Kepala'){items='<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'profil\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-gear w-5 text-amber-400"></i> Pengaturan Profil</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'ustadz\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chalkboard-user w-5 text-amber-400"></i> Data Guru</a><a href="#" onclick="showSection(\'santri\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-users w-5 text-amber-400"></i> Data Santri</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'kenaikan\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-award w-5 text-amber-400"></i> Kenaikan Jilid</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'mutasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-file-invoice-dollar w-5 text-amber-400"></i> Kas Keluar Masuk</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Pesan Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'user\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-user-gear w-5 text-amber-400"></i> Management User</a><a href="#" onclick="showSection(\'backup\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-database w-5 text-amber-400"></i> Backup & Restore</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="hapusFotoManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-regular fa-trash-can w-5 text-amber-200"></i> Hapus Foto > 1 Bulan</a><a href="#" onclick="hapusAllDataGlobal()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa mt-2"><i class="fa-solid fa-triangle-exclamation w-5 text-amber-200"></i> Hapus All Data</a><a href="#" onclick="hapusDataLamaManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-solid fa-clock-rotate-left w-5 text-amber-200"></i> Hapus Manual</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>'}else if(role==='Bendahara'){items='<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'mutasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-file-invoice-dollar w-5 text-amber-400"></i> Kas Keluar Masuk</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Pesan Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="hapusFotoManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-regular fa-trash-can w-5 text-amber-200"></i> Hapus Foto > 1 Bulan</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>'}else if(role==='Guru'){items='<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'ustadz\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chalkboard-user w-5 text-amber-400"></i> Data Guru</a><a href="#" onclick="showSection(\'santri\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-users w-5 text-amber-400"></i> Data Santri</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Pesan Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>'}else if(role==='Wali Santri'){items='<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="openModal(\'modalEditWali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-user-pen w-5 text-amber-400"></i> Profil &amp; Pengaturan</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>'}return items}
-function updateSidebarCopyright(){try{var footer=getEl('sidebar-copyright-footer');if(!footer)return;var namaTPQ=db.profil?db.profil.nama:'TPQ',founder='Ahmad Fathunnur',wa='083198740074';footer.innerHTML='<div id="sidebar-footer" class="sidebar-footer-text text-center space-y-1.5"><p class="font-bold text-amber-300 text-xs">'+namaTPQ+'</p><p class="text-emerald-300 text-[10px] font-medium">Development : Daneva Studio</p><p class="text-emerald-300 text-xs font-semibold">'+founder+'</p><p class="text-amber-300 text-xs"><i class="fa-brands fa-whatsapp mr-1"></i><a href="#" onclick="openWhatsAppFounder()" class="hover:underline">'+wa+'</a></p><p class="text-emerald-300/70 text-[10px] pt-1 border-t border-emerald-800/60">Copyright 2026</p></div>'}catch(e){}}
+async function loadAllData() {
+    try {
+        updateSplash(5, 'Menghubungi...');
+        var profilData = null;
+        try {
+            var result = await supabaseClient.from('profil').select('*').limit(1).maybeSingle();
+            if (!result.error && result.data) profilData = result.data;
+        } catch(e) {}
+        updateSplash(15, 'Profil...');
+        if (!profilData) {
+            var tenantNama = window.__TENANT ? window.__TENANT.nama : 'TPQ';
+            var tenantAlamat = window.__TENANT ? window.__TENANT.alamat : 'Alamat Lembaga';
+            db.profil = {
+                nama: tenantNama,
+                alamat: tenantAlamat,
+                tahunBerdiri: "2012",
+                nisp: "311233240001",
+                bernaug: "RMI NU",
+                metode: "Tilawati",
+                kepala: "Ky Ahmad Fathunnur, C.Eq",
+                bendahara: "Ustadzah Siti Fatimah",
+                bulanan: "30000",
+                logo: "https://api.iconify.design/fluent-emoji-flat:open-book.svg"
+            };
+        } else {
+            db.profil = profilData;
+        }
+        updateAllLogos();
+        updateMetodeLabels();
+        
+        var tables = ['santri', 'prestasi', 'kenaikan', 'bayar', 'mutasi', 'ustadz', 'users', 'informasi', 'pesanWali', 'kurikulum', 'kegiatanLuar'];
+        for (var i = 0; i < tables.length; i++) {
+            var t = tables[i];
+            updateSplash(20 + (i / tables.length) * 70, 'Memuat ' + t + '...');
+            try {
+                var result = await supabaseClient.from(t).select('*');
+                db[t] = (result.error || !result.data) ? [] : result.data;
+            } catch(e) {
+                db[t] = [];
+            }
+        }
+        // Rekap relasional final: gunakan NIS/user_id sebagai sumber identitas, bukan nama.
+        try {
+            var rekapResult = await supabaseClient.from('v_santri_lengkap').select('*');
+            db.rekapSantri = (rekapResult.error || !rekapResult.data) ? [] : rekapResult.data;
+        } catch(e) {
+            db.rekapSantri = [];
+            console.warn('v_santri_lengkap belum dapat dibaca:', e);
+        }
+        if (db.kurikulum.length === 0) {
+            for (var key in defaultKurikulum) {
+                if (defaultKurikulum.hasOwnProperty(key)) {
+                    db.kurikulum.push({
+                        jilid: key,
+                        data: defaultKurikulum[key],
+                        kurikulum_tambahan: defaultKurikulum[key].kurikulum_tambahan || ''
+                    });
+                }
+            }
+        }
+        updateSplash(95, 'Selesai!');
+        appReady = true;
+        return true;
+    } catch(e) {
+        console.error('Load error:', e);
+        var tenantNama = window.__TENANT ? window.__TENANT.nama : 'TPQ';
+        var tenantAlamat = window.__TENANT ? window.__TENANT.alamat : 'Alamat Lembaga';
+        db.profil = {
+            nama: tenantNama,
+            alamat: tenantAlamat,
+            tahunBerdiri: "2012",
+            nisp: "311233240001",
+            bernaug: "RMI NU",
+            metode: "Tilawati",
+            kepala: "Ky Ahmad Fathunnur, C.Eq",
+            bendahara: "Ustadzah Siti Fatimah",
+            bulanan: "30000",
+            logo: "https://api.iconify.design/fluent-emoji-flat:open-book.svg"
+        };
+        updateAllLogos();
+        updateMetodeLabels();
+        appReady = true;
+        return false;
+    }
+}
 
-// ============================================================
-// SEARCH / DROPDOWN - DIPERBAIKI FOKUS KURSOR
+document.addEventListener('DOMContentLoaded', function() {
+    initTenantFromURL().then(function(tenantReady) {
+        if (!tenantReady) {
+            document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;padding:24px;font-family:system-ui,sans-serif;"><div style="max-width:520px;background:white;border:1px solid #e2e8f0;border-radius:20px;padding:28px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08);"><div style="font-size:42px;margin-bottom:12px;">⚠️</div><h2 style="color:#065f46;margin:0 0 8px;font-size:22px;">Lembaga Tidak Ditemukan</h2><p style="color:#64748b;margin:0;">URL aplikasi harus memiliki kode tenant yang terdaftar dan aktif.</p></div></div>';
+            return;
+        }
+        if (window.__TENANT) {
+            document.getElementById('splash-nama-tpq').textContent = window.__TENANT.nama || 'SIAP LPQ';
+        }
+        
+        updateSplash(2, 'Mulai...');
+        var timeout = setTimeout(function() {
+            console.warn('⏱️ Timeout, force login');
+            forceShowLogin();
+        }, 8000);
+        
+        loadAllData().then(function(success) {
+            updateSplash(92, 'Sesi...');
+            var sessionData = null;
+            try {
+                var raw = localStorage.getItem('tpq_session');
+                if (raw) sessionData = JSON.parse(raw);
+            } catch(e) {}
+            if (sessionData) {
+                try {
+                    var found = null;
+                    for (var i = 0; i < db.users.length; i++) {
+                        var u = db.users[i];
+                        if (u.username === sessionData.username && u.password === sessionData.password && u.role === sessionData.role) {
+                            found = u;
+                            break;
+                        }
+                    }
+                    if (found) {
+                        currentUser = found;
+                        var login = getEl('login-screen');
+                        var main = getEl('main-app-container');
+                        var splash = getEl('splash-screen');
+                        if (login) login.style.display = 'none';
+                        if (main) {
+                            main.style.display = 'flex';
+                            main.style.opacity = '1';
+                        }
+                        if (splash) {
+                            splash.style.opacity = '0';
+                            setTimeout(function() {
+                                if (splash) splash.style.display = 'none';
+                            }, 400);
+                        }
+                        applyUserTheme(currentUser.role);
+                        setupSidebarByRole();
+                        renderAll();
+                        showSection('dashboard');
+                        clearTimeout(timeout);
+                        updateSplash(100, 'Selamat datang!');
+                        setupSidebarEvents();
+                        initBackupInfo();
+                        return;
+                    }
+                } catch(e) {}
+            }
+            forceShowLogin();
+            clearTimeout(timeout);
+        });
+    });
+});
+
+function handleLogin(e) {
+    e.preventDefault();
+    try {
+        var role = getVal('login-role');
+        var user = getVal('login-username').trim();
+        var pass = getVal('login-password').trim();
+        var found = null;
+        for (var i = 0; i < db.users.length; i++) {
+            var u = db.users[i];
+            if (u.username === user && u.password === pass && u.role === role) {
+                found = u;
+                break;
+            }
+        }
+        if (found) {
+            currentUser = found;
+            try {
+                localStorage.setItem('tpq_session', JSON.stringify({
+                    username: found.username,
+                    password: found.password,
+                    role: found.role
+                }));
+            } catch(e) {}
+            var login = getEl('login-screen');
+            var main = getEl('main-app-container');
+            var splash = getEl('splash-screen');
+            if (login) login.style.display = 'none';
+            if (main) {
+                main.style.display = 'flex';
+                main.style.opacity = '1';
+            }
+            if (splash) {
+                splash.style.opacity = '0';
+                setTimeout(function() {
+                    if (splash) splash.style.display = 'none';
+                }, 400);
+            }
+            applyUserTheme(currentUser.role);
+            setupSidebarByRole();
+            renderAll();
+            showSection('dashboard');
+            updateSplash(100, 'Selamat datang!');
+            setupSidebarEvents();
+            initBackupInfo();
+        } else {
+            alert('❌ Username/Password/Role salah!');
+        }
+    } catch(e) {
+        alert('❌ Error: ' + e.message);
+    }
+}
+
+function keluarSeketika() {
+    try { window.close(); } catch(e) {}
+    window.location.href = 'about:blank';
+}
+
+function konfirmasiKeluar() {
+    if (confirm("Yakin keluar?")) {
+        try { localStorage.removeItem('tpq_session'); } catch(e) {}
+        window.location.href = 'about:blank';
+    }
+}
+
+function showSection(id) {
+    try {
+        currentActiveSection = id;
+        var sections = document.querySelectorAll('.content-section');
+        for (var i = 0; i < sections.length; i++) {
+            sections[i].classList.add('hidden');
+        }
+        var el = getEl(id);
+        if (el) el.classList.remove('hidden');
+        var navLinks = document.querySelectorAll('.nav-link');
+        for (var j = 0; j < navLinks.length; j++) {
+            var l = navLinks[j];
+            l.className = "nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa";
+            if (l.getAttribute('onclick') && l.getAttribute('onclick').indexOf(id) !== -1) {
+                l.className = "nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa";
+            }
+        }
+        var titles = {
+            dashboard: 'Dashboard LPQ',
+            profil: 'Pengaturan Profil',
+            kurikulum: 'Kurikulum TPQ',
+            ustadz: 'Data Guru',
+            santri: 'Data Santri',
+            prestasi: 'Buku Prestasi',
+            kenaikan: 'Kenaikan Jilid',
+            pembayaran: 'Pembayaran & Kas',
+            mutasi: 'Kas Keluar Masuk',
+            pesan_wali: 'Pesan Wali Santri',
+            informasi: 'Papan Informasi',
+            user: 'Management User',
+            backup: 'Backup & Restore',
+            utility: 'Sambutan Founder'
+        };
+        if (titles[id]) {
+            var t = getEl('page-title');
+            if (t) t.innerText = titles[id];
+        }
+        var sb = getEl('app-sidebar');
+        if (sb && !sb.classList.contains('-translate-x-full')) {
+            sb.classList.add('-translate-x-full');
+        }
+        var mainArea = getEl('main-content-area');
+        if (mainArea) {
+            mainArea.scrollTop = 0;
+        }
+        if (id === 'pembayaran') {
+            setTimeout(function() {
+                var btn = getEl('btn-catat-pembayaran');
+                if (btn) btn.focus();
+            }, 300);
+        }
+        setTimeout(function() {
+            var sectionEl = getEl(id);
+            if (sectionEl) {
+                var firstInput = sectionEl.querySelector('input:not([type="hidden"]), select, textarea');
+                if (firstInput && !firstInput.disabled) {
+                    firstInput.focus();
+                }
+            }
+        }, 300);
+    } catch(e) {}
+}
+
+function openModal(id) {
+    try {
+        var el = getEl(id);
+        if (el) {
+            el.classList.remove('hidden');
+            setTimeout(function() {
+                if (id === 'modalPrestasi') {
+                    var input = getEl('search_santri_prestasi');
+                    if (input) { input.focus(); }
+                    setupAutoFocus('#modalPrestasi form');
+                } else if (id === 'modalSantri') {
+                    var namaInput = getEl('s_nama');
+                    if (namaInput) { namaInput.focus(); }
+                    setupAutoFocus('#modalSantri form');
+                } else if (id === 'modalKenaikan') {
+                    setupAutoFocus('#modalKenaikan form');
+                } else if (id === 'modalBayar') {
+                    setupAutoFocus('#modalBayar form');
+                } else if (id === 'modalKasMasuk') {
+                    setupAutoFocus('#modalKasMasuk form');
+                } else if (id === 'modalKasKeluar') {
+                    setupAutoFocus('#modalKasKeluar form');
+                } else if (id === 'modalUstadz') {
+                    setupAutoFocus('#modalUstadz form');
+                } else if (id === 'modalUser') {
+                    setupAutoFocus('#modalUser form');
+                } else if (id === 'modalInfo') {
+                    setupAutoFocus('#modalInfo form');
+                } else if (id === 'modalEditWali') {
+                    setupAutoFocus('#modalEditWali form');
+                } else {
+                    var inp = el.querySelector('input:not([type="hidden"]), select, textarea');
+                    if (inp) inp.focus();
+                }
+            }, 100);
+        }
+        if (id === 'modalSantri') autoSelectGuru(getVal('s_jilid'));
+        if (id === 'modalEditWali') loadDataWali();
+    } catch(e) {}
+}
+
+function closeModal(id) {
+    try {
+        var el = getEl(id);
+        if (el) el.classList.add('hidden');
+    } catch(e) {}
+}
+
+function applyUserTheme(role) {
+    try {
+        var b = getEl('app-body');
+        var s = getEl('app-sidebar');
+        var header = getEl('dash-header-container');
+        if (!b || !s) return;
+        s.className = 'w-64 bg-gradient-to-b from-emerald-900 via-emerald-950 to-teal-950 text-white flex flex-col shadow-2xl border-r border-emerald-800/50 absolute md:relative z-30 h-full transition-transform duration-300 -translate-x-full md:-translate-x-full';
+        if (header) {
+            header.className = 'relative rounded-3xl p-5 md:p-8 shadow-2xl overflow-hidden border-2 border-amber-400/30 card-3d dash-counter-bg-v3';
+            header.style.color = '#f5e6c8';
+        }
+        if (role === 'Kepala') {
+            b.className = "bg-gradient-to-br from-slate-100 via-emerald-50/40 to-slate-100 font-sans text-slate-800 min-h-screen";
+        } else if (role === 'Bendahara') {
+            b.className = "bg-gradient-to-br from-amber-50 via-yellow-50/40 to-amber-100 font-sans text-slate-800 min-h-screen";
+        } else if (role === 'Guru') {
+            b.className = "bg-gradient-to-br from-sky-50 via-blue-50/40 to-sky-100 font-sans text-slate-800 min-h-screen";
+        } else if (role === 'Wali Santri') {
+            b.className = "bg-gradient-to-br from-purple-50 via-fuchsia-50/40 to-pink-100 font-sans text-slate-800 min-h-screen";
+        }
+    } catch(e) {}
+}
+
+function setupSidebarByRole() {
+    try {
+        var nav = getEl('sidebar-nav');
+        var ub = getEl('user-badge');
+        if (ub) ub.innerText = currentUser.nama + ' (' + currentUser.role + ')';
+        if (!nav) return;
+        var html = '';
+        if (currentUser.role === 'Kepala') {
+            html = getSidebarItems('Kepala');
+        } else if (currentUser.role === 'Bendahara') {
+            html = getSidebarItems('Bendahara');
+        } else if (currentUser.role === 'Guru') {
+            html = getSidebarItems('Guru');
+        } else if (currentUser.role === 'Wali Santri') {
+            html = getSidebarItems('Wali Santri');
+        }
+        if (nav) nav.innerHTML = html;
+        var btnContainer = getEl('btn-guru-container');
+        if (btnContainer) {
+            btnContainer.style.display = (currentUser.role === 'Guru') ? 'none' : 'flex';
+        }
+        updateSidebarCopyright();
+        if (nav) nav.scrollTop = 0;
+    } catch(e) {}
+}
+
+function getSidebarItems(role) {
+    var items = '';
+    if (role === 'Kepala') {
+        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'profil\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-gear w-5 text-amber-400"></i> Pengaturan Profil</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'ustadz\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chalkboard-user w-5 text-amber-400"></i> Data Guru</a><a href="#" onclick="showSection(\'santri\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-users w-5 text-amber-400"></i> Data Santri</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'kenaikan\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-award w-5 text-amber-400"></i> Kenaikan Jilid</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'mutasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-file-invoice-dollar w-5 text-amber-400"></i> Kas Keluar Masuk</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Pesan Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'user\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-user-gear w-5 text-amber-400"></i> Management User</a><a href="#" onclick="showSection(\'backup\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-database w-5 text-amber-400"></i> Backup & Restore</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="hapusFotoManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-regular fa-trash-can w-5 text-amber-200"></i> Hapus Foto > 1 Bulan</a><a href="#" onclick="hapusAllDataGlobal()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa mt-2"><i class="fa-solid fa-triangle-exclamation w-5 text-amber-200"></i> Hapus All Data</a><a href="#" onclick="hapusDataLamaManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-solid fa-clock-rotate-left w-5 text-amber-200"></i> Hapus Manual</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
+    } else if (role === 'Bendahara') {
+        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'mutasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-file-invoice-dollar w-5 text-amber-400"></i> Kas Keluar Masuk</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Pesan Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="hapusFotoManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-regular fa-trash-can w-5 text-amber-200"></i> Hapus Foto > 1 Bulan</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
+    } else if (role === 'Guru') {
+        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'ustadz\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chalkboard-user w-5 text-amber-400"></i> Data Guru</a><a href="#" onclick="showSection(\'santri\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-users w-5 text-amber-400"></i> Data Santri</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Pesan Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
+    } else if (role === 'Wali Santri') {
+        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="openModal(\'modalEditWali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-user-pen w-5 text-amber-400"></i> Profil &amp; Pengaturan</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
+    }
+    return items;
+}
+
+function updateSidebarCopyright() {
+    try {
+        var footer = getEl('sidebar-copyright-footer');
+        if (!footer) return;
+        var namaTPQ = db.profil ? db.profil.nama : 'TPQ';
+        var founder = 'Ahmad Fathunnur';
+        var wa = '083198740074';
+        footer.innerHTML = '<div id="sidebar-footer" class="sidebar-footer-text text-center space-y-1.5"><p class="font-bold text-amber-300 text-xs">' + namaTPQ + '</p><p class="text-emerald-300 text-[10px] font-medium">Development : Daneva Studio</p><p class="text-emerald-300 text-xs font-semibold">' + founder + '</p><p class="text-amber-300 text-xs"><i class="fa-brands fa-whatsapp mr-1"></i><a href="#" onclick="openWhatsAppFounder()" class="hover:underline">' + wa + '</a></p><p class="text-emerald-300/70 text-[10px] pt-1 border-t border-emerald-800/60">Copyright 2026</p></div>';
+    } catch(e) {}
+}
+
 // ============================================================
 function handleModalSearchInput(inputId,dropdownId,hiddenValId){try{var input=getEl(inputId);if(!input)return;var q=input.value.toLowerCase(),drop=getEl(dropdownId);if(!drop)return;var list=db.santri||[];if(hiddenValId==='b_santri_val'&&currentUser&&currentUser.role==='Guru'){var g=null;for(var i=0;i<(db.ustadz||[]).length;i++){if(db.ustadz[i].nama.toLowerCase()===currentUser.nama.toLowerCase()){g=db.ustadz[i];break}}if(g&&g.jilid&&g.jilid.indexOf('Semua')===-1){list=list.filter(function(s){return s.jilid&&s.jilid.toLowerCase()===g.jilid.toLowerCase()})}}if(q&&q.trim()){list=list.filter(function(s){return(s.nama&&s.nama.toLowerCase().indexOf(q)!==-1)||(s.nis&&s.nis.toLowerCase().indexOf(q)!==-1)})}if(!list||!list.length){drop.innerHTML='<div class="searchable-dropdown-item text-slate-400">Santri tidak ditemukan</div>';drop.style.display='block';return}var html='';for(var j=0;j<list.length;j++){var s=list[j],label=s.nama+' - NIS: '+(s.nis||'-')+' ('+(s.jilid||'-')+')';html+='<div class="searchable-dropdown-item" onclick="selectSantriItem(\''+inputId+'\',\''+dropdownId+'\',\''+hiddenValId+'\',\''+(s.nama||'').replace(/'/g,"\\'")+'\',\''+label+'\')">'+label+'</div>'}drop.innerHTML=html;drop.style.display='block'}catch(e){}}
 function selectSantriItem(inputId,dropdownId,hiddenValId,raw,label){try{var input=getEl(inputId),drop=getEl(dropdownId),hidden=getEl(hiddenValId);if(input)input.value=label||raw||'';if(hidden)hidden.value=raw||'';if(drop)drop.style.display='none';if(inputId==='search_santri_prestasi'&&raw){loadPrevPrestasi(raw);showPrestasiSantriInfo(raw)}var nextId=input?input.getAttribute('data-next'):null;if(nextId){setTimeout(function(){var nextEl=getEl(nextId);if(nextEl&&!nextEl.disabled){nextEl.focus();if(nextEl.tagName==='SELECT'||nextEl.tagName==='INPUT'||nextEl.tagName==='TEXTAREA'){nextEl.select?nextEl.select():null}}},200)}}catch(e){}}
@@ -528,11 +1061,40 @@ function handleCompactSearchInput(q){try{var drop=getEl('filter_search_dropdown'
 function selectCompactSearch(nama,label){try{var input=getEl('filter_bayar_cari'),drop=getEl('filter_search_dropdown');if(input)input.value=nama;if(drop)drop.style.display='none';applyFilterPembayaran()}catch(e){}}
 window.addEventListener('click',function(e){try{if(!e.target.closest('.searchable-select-wrapper')){var lists=document.querySelectorAll('.searchable-dropdown-list');for(var i=0;i<lists.length;i++){lists[i].style.display='none'}}}catch(e){}});
 function autoSelectGuru(jilid){try{var found=null;for(var i=0;i<db.ustadz.length;i++){if(db.ustadz[i].jilid===jilid||db.ustadz[i].jilid.indexOf('Semua')!==-1){found=db.ustadz[i];break}}var el=getEl('s_guru');if(el)el.value=found?found.nama:(db.profil?db.profil.kepala:'')}catch(e){}}
-function loadPrevPrestasi(nama){try{if(!nama)return;var riwayat=db.prestasi.filter(function(p){return p.santri.toLowerCase()===nama.toLowerCase()});var last={klasikal:'-',kitab:'-',doa:'-',surat:'-',alquran:'-',sholat:'-',tajwid:'-',tambahan:'-'};for(var i=0;i<riwayat.length;i++){var p=riwayat[i];if(last.klasikal==='-'&&p.klasikal&&p.klasikal!=='-')last.klasikal=p.klasikal;if(last.kitab==='-'&&p.kitab&&p.kitab!=='-')last.kitab=p.kitab;if(last.doa==='-'&&p.doa&&p.doa!=='-')last.doa=p.doa;if(last.surat==='-'&&p.surat&&p.surat!=='-')last.surat=p.surat;if(last.alquran==='-'&&p.alquran&&p.alquran!=='-')last.alquran=p.alquran;if(last.sholat==='-'&&p.sholat&&p.sholat!=='-')last.sholat=p.sholat;if(last.tajwid==='-'&&p.tajwid&&p.tajwid!=='-')last.tajwid=p.tajwid;if(last.tambahan==='-'&&p.tambahan&&p.tambahan!=='-')last.tambahan=p.tambahan}var ids=['prev_klasikal','prev_halaman','prev_doa','prev_surat','prev_alquran','prev_sholat','prev_tajwid','prev_tambahan'],vals=[last.klasikal,last.kitab,last.doa,last.surat,last.alquran,last.sholat,last.tajwid,last.tambahan];for(var j=0;j<ids.length;j++){var el=getEl(ids[j]);if(el)el.innerText=vals[j]||'-'}}catch(e){}}
-function showPrestasiSantriInfo(nama){try{var s=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nama.toLowerCase()===nama.toLowerCase()){s=db.santri[i];break}}if(!s)return;var nameEl=getEl('prestasi-santri-nama'),nisEl=getEl('prestasi-santri-nis'),jilidEl=getEl('prestasi-santri-jilid'),guruEl=getEl('prestasi-santri-guru'),lastEl=getEl('prestasi-santri-terakhir');if(nameEl)nameEl.innerText=s.nama;if(nisEl)nisEl.innerText=s.nis||'-';if(jilidEl)jilidEl.innerText=s.jilid||'-';if(guruEl)guruEl.innerText=s.guru||'-';var last=db.prestasi.filter(function(p){return p.santri.toLowerCase()===nama.toLowerCase()}).sort(function(a,b){return new Date(b.dateIso)-new Date(a.dateIso)})[0];if(lastEl)lastEl.innerText=last?last.tanggal:'Belum ada'}catch(e){}}
+function loadPrevPrestasi(nama){try{if(!nama)return;var s=getSantriByNisOrName('',nama);var riwayat=db.prestasi.filter(function(p){return s?recordBelongsToSantri(p,s):String(p.santri||'').toLowerCase()===String(nama).toLowerCase()});riwayat.sort(function(a,b){return getRecordDateValue(b)-getRecordDateValue(a)});var last={klasikal:'-',kitab:'-',doa:'-',surat:'-',alquran:'-',sholat:'-',tajwid:'-',tambahan:'-'};for(var i=0;i<riwayat.length;i++){var p=riwayat[i];if(last.klasikal==='-'&&p.klasikal&&p.klasikal!=='-')last.klasikal=p.klasikal;if(last.kitab==='-'&&p.kitab&&p.kitab!=='-')last.kitab=p.kitab;if(last.doa==='-'&&p.doa&&p.doa!=='-')last.doa=p.doa;if(last.surat==='-'&&p.surat&&p.surat!=='-')last.surat=p.surat;if(last.alquran==='-'&&p.alquran&&p.alquran!=='-')last.alquran=p.alquran;if(last.sholat==='-'&&p.sholat&&p.sholat!=='-')last.sholat=p.sholat;if(last.tajwid==='-'&&p.tajwid&&p.tajwid!=='-')last.tajwid=p.tajwid;if(last.tambahan==='-'&&p.tambahan&&p.tambahan!=='-')last.tambahan=p.tambahan}var ids=['prev_klasikal','prev_halaman','prev_doa','prev_surat','prev_alquran','prev_sholat','prev_tajwid','prev_tambahan'],vals=[last.klasikal,last.kitab,last.doa,last.surat,last.alquran,last.sholat,last.tajwid,last.tambahan];for(var j=0;j<ids.length;j++){var el=getEl(ids[j]);if(el)el.innerText=vals[j]||'-'}}catch(e){}}
+function showPrestasiSantriInfo(nama){try{var s=getSantriByNisOrName('',nama);if(!s)return;var nameEl=getEl('prestasi-santri-nama'),nisEl=getEl('prestasi-santri-nis'),jilidEl=getEl('prestasi-santri-jilid'),guruEl=getEl('prestasi-santri-guru'),lastEl=getEl('prestasi-santri-terakhir');if(nameEl)nameEl.innerText=s.nama;if(nisEl)nisEl.innerText=s.nis||'-';if(jilidEl)jilidEl.innerText=s.jilid||'-';if(guruEl)guruEl.innerText=s.guru||'-';var last=db.prestasi.filter(function(p){return recordBelongsToSantri(p,s)}).sort(function(a,b){return getRecordDateValue(b)-getRecordDateValue(a)})[0];if(lastEl)lastEl.innerText=last?(last.tanggal||last.dateIso||'-'):'Belum ada'}catch(e){}}
 function resetFormPrestasi(){try{var input=getEl('search_santri_prestasi'),hidden=getEl('p_santri_val');if(input){input.value='';input.focus()}if(hidden)hidden.value='';var fields=['p_klasikal','p_halaman','p_doa','p_surat','p_alquran','p_sholat','p_tajwid','p_tambahan'];for(var i=0;i<fields.length;i++){var el=getEl(fields[i]);if(el)el.value=''}}catch(e){}}
 function setPrestasiTanggal(){try{var now=new Date(),el=getEl('prestasi-tanggal-text');if(el)el.innerText=now.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}catch(e){}}
 var originalOpenModal=openModal;openModal=function(id){originalOpenModal(id);if(id==='modalPrestasi'){setPrestasiTanggal();resetFormPrestasi();setTimeout(function(){var input=getEl('search_santri_prestasi');if(input)input.focus()},300)}};
+
+// ============================================================
+// REFERENSI 1 - DB COMPATIBILITY HELPERS
+// Identitas utama santri = NIS. Nama hanya fallback untuk data lama.
+// ============================================================
+function getSantriByNisOrName(nis,nama){
+    try{
+        var n=nis==null?'':String(nis).trim();
+        var nm=nama==null?'':String(nama).trim().toLowerCase();
+        if(n){for(var i=0;i<db.santri.length;i++){if(String(db.santri[i].nis||'').trim()===n)return db.santri[i]}}
+        if(nm){for(var j=0;j<db.santri.length;j++){if(String(db.santri[j].nama||'').trim().toLowerCase()===nm)return db.santri[j]}}
+    }catch(e){}
+    return null;
+}
+function recordBelongsToSantri(record,santri){
+    if(!record||!santri)return false;
+    var nis=String(santri.nis||'').trim();
+    if(nis && String(record.nisSantri||record.nis||'').trim()===nis)return true;
+    var rn=String(record.santri||record.namaSantri||'').trim().toLowerCase();
+    return !!rn && rn===String(santri.nama||'').trim().toLowerCase();
+}
+function getRecordDateValue(record){
+    if(!record)return 0;
+    var d=record.dateIso;
+    if(d)return new Date(d).getTime()||0;
+    if(record.tanggal)return new Date(record.tanggal).getTime()||0;
+    if(record.created_at)return new Date(record.created_at).getTime()||0;
+    return 0;
+}
 
 // ============================================================
 // TOGGLE FUNCTIONS
@@ -547,8 +1109,7 @@ function hitungMasaPengabdian(tmt){if(!tmt)return'-';try{var d=new Date(tmt),now
 function hapusAllDataGlobal(){if(confirm('⚠️ Hapus SELURUH DATA?')){db.santri=[];db.prestasi=[];db.kenaikan=[];db.bayar=[];db.ustadz=[];var tables=['santri','prestasi','kenaikan','bayar','ustadz'];for(var i=0;i<tables.length;i++){syncTable(tables[i])}alert('✅ Semua data dihapus.');renderAll()}}
 async function syncTable(t){try{var toSync=db[t].filter(function(item){return item.id}),toInsert=db[t].filter(function(item){return!item.id});if(toInsert.length)await supabaseClient.from(t).insert(toInsert);for(var i=0;i<toSync.length;i++){await supabaseClient.from(t).update(toSync[i]).eq('id',toSync[i].id)}}catch(e){}}
 async function hapusPesanOtomatis(){try{var now=Date.now(),thirty=30*24*60*60*1000,del=0,lama=db.pesanWali.filter(function(p){var w=p.waktu?new Date(p.waktu).getTime():0;return w&&(now-w)>thirty});if(lama.length){var ids=lama.map(function(p){return p.id}).filter(function(id){return id});if(ids.length){await supabaseClient.from('pesanWali').delete().in('id',ids);db.pesanWali=db.pesanWali.filter(function(p){return ids.indexOf(p.id)===-1});del+=ids.length}}return del}catch(e){return 0}}
-async function hapusPrestasiSantri(nama){try{var list=db.prestasi.filter(function(p){return p.santri.toLowerCase()===nama.toLowerCase()});if(list.length){var ids=list.map(function(p){return p.id}).filter(function(id){return id});if(ids.length){await supabaseClient.from('prestasi').delete().in('id',ids);db.prestasi=db.prestasi.filter(function(p){return ids.indexOf(p.id)===-1})}}}catch(e){}}
-
+async function hapusPrestasiSantri(nama){try{var s=getSantriByNisOrName('',nama);var list=db.prestasi.filter(function(p){return s?recordBelongsToSantri(p,s):String(p.santri||'').toLowerCase()===String(nama||'').toLowerCase()});if(list.length){var ids=list.map(function(p){return p.id}).filter(function(id){return id});if(ids.length){var result=await supabaseClient.from('prestasi').delete().in('id',ids);if(result.error)throw result.error;db.prestasi=db.prestasi.filter(function(p){return ids.indexOf(p.id)===-1})}}}catch(e){console.warn('hapusPrestasiSantri:',e)}}
 // ============================================================
 // CRUD - SANTRI
 // ============================================================
@@ -593,7 +1154,7 @@ async function deleteInfo(id){if(!confirm('⚠️ Hapus pengumuman?'))return;try
 // ============================================================
 // CRUD - PESAN WALI
 // ============================================================
-async function kirimPesanDariWali(e){e.preventDefault();if(!currentUser||currentUser.role!=='Wali Santri')return;try{var s=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nis===currentUser.ref){s=db.santri[i];break}}var obj={username:currentUser.username,namaWali:currentUser.nama,namaSantri:s?s.nama:'Santri',jilid:s?s.jilid:'-',pesan:getVal('wali_pesan_text'),waktu:new Date().toLocaleString('id-ID'),balasan:''};var result=await supabaseClient.from('pesanWali').insert([obj]).select();db.pesanWali.push(result.data[0]);var input=getEl('wali_pesan_text');if(input)input.value='';alert('✅ Pesan terkirim!');renderAll()}catch(err){alert('❌ '+err.message)}}
+async function kirimPesanDariWali(e){e.preventDefault();if(!currentUser||currentUser.role!=='Wali Santri')return;try{var s=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nis===currentUser.ref){s=db.santri[i];break}}var obj={username:currentUser.username,user_id:currentUser.id,ref:currentUser.ref,namaWali:currentUser.nama,namaSantri:s?s.nama:'Santri',jilid:s?s.jilid:'-',pesan:getVal('wali_pesan_text'),waktu:new Date().toLocaleString('id-ID'),balasan:''};var result=await supabaseClient.from('pesanWali').insert([obj]).select();db.pesanWali.push(result.data[0]);var input=getEl('wali_pesan_text');if(input)input.value='';alert('✅ Pesan terkirim!');renderAll()}catch(err){alert('❌ '+err.message)}}
 function bukaModalBalas(idx){try{var p=db.pesanWali[idx];if(!p)return;var index=getEl('balas_pesan_index'),sumber=getEl('balas_pesan_sumber'),text=getEl('balas_pesan_text');if(index)index.value=idx;if(sumber)sumber.innerText='Dari: '+p.namaWali+' ('+p.namaSantri+' - '+p.jilid+')\nPesan: "'+p.pesan+'"';if(text)text.value=p.balasan||'';openModal('modalBalasPesan')}catch(e){}}
 async function saveBalasanPesan(e){e.preventDefault();try{var idx=parseInt(getVal('balas_pesan_index')),balasan=getVal('balas_pesan_text'),p=db.pesanWali[idx];if(!p)return;await supabaseClient.from('pesanWali').update({balasan:balasan}).eq('id',p.id);p.balasan=balasan;closeModal('modalBalasPesan');alert('✅ Balasan dikirim!');renderAll()}catch(err){alert('❌ '+err.message)}}
 async function hapusPesanWali(idx){if(!confirm('⚠️ Hapus pesan?'))return;try{var p=db.pesanWali[idx];if(!p)return;await supabaseClient.from('pesanWali').delete().eq('id',p.id);db.pesanWali.splice(idx,1);renderAll();alert('✅ Dihapus.')}catch(err){alert('❌ '+err.message)}}
@@ -601,7 +1162,7 @@ async function hapusPesanWali(idx){if(!confirm('⚠️ Hapus pesan?'))return;try
 // ============================================================
 // CRUD - PRESTASI, KENAIKAN, BAYAR, MUTASI, PROFIL, KEGIATAN
 // ============================================================
-async function savePrestasi(e){e.preventDefault();try{var tgl=new Date(),now=tgl.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}),dateIso=getTodayLocal(),hidden=getEl('p_santri_val'),input=getEl('search_santri_prestasi'),nama=(hidden?hidden.value:'')||(input?input.value.trim():'');if(!nama){alert('❌ Pilih santri!');return}var sObj=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nama.toLowerCase().trim()===nama.toLowerCase().trim()){sObj=db.santri[i];break}}var nis=sObj?sObj.nis:'';if(!nis){alert('❌ Santri tidak punya NIS!');return}var klasikal=getVal('p_klasikal').trim()||'-',kitab=getVal('p_halaman').trim()||'-',doa=getVal('p_doa').trim()||'-',surat=getVal('p_surat').trim()||'-',alquran=getVal('p_alquran').trim()||'-',sholat=getVal('p_sholat').trim()||'-',tajwid=getVal('p_tajwid').trim()||'-',tambahan=getVal('p_tambahan').trim()||'-',guru=currentUser?currentUser.nama:(db.profil?db.profil.kepala:''),jilid=sObj?sObj.jilid:'-',prestasiObj={dateIso:dateIso,tanggal:now,santri:sObj?sObj.nama:nama,jilid:jilid,guruPengampu:guru,klasikal:klasikal,kitab:kitab,doa:doa,surat:surat,alquran:alquran,sholat:sholat,tajwid:tajwid,tambahan:tambahan};var result=await supabaseClient.from('prestasi').insert([prestasiObj]).select();db.prestasi.unshift(result.data[0]);closeModal('modalPrestasi');if(input)input.value='';if(hidden)hidden.value='';alert('✅ Prestasi dicatat!');setTimeout(function(){openModal('modalPrestasi')},300);renderAll()}catch(err){alert('❌ '+err.message)}}
+async function savePrestasi(e){e.preventDefault();try{var tgl=new Date(),now=tgl.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}),dateIso=getTodayLocal(),hidden=getEl('p_santri_val'),input=getEl('search_santri_prestasi'),nama=(hidden?hidden.value:'')||(input?input.value.trim():'');if(!nama){alert('❌ Pilih santri!');return}var sObj=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nama.toLowerCase().trim()===nama.toLowerCase().trim()){sObj=db.santri[i];break}}var nis=sObj?sObj.nis:'';if(!nis){alert('❌ Santri tidak punya NIS!');return}var klasikal=getVal('p_klasikal').trim()||'-',kitab=getVal('p_halaman').trim()||'-',doa=getVal('p_doa').trim()||'-',surat=getVal('p_surat').trim()||'-',alquran=getVal('p_alquran').trim()||'-',sholat=getVal('p_sholat').trim()||'-',tajwid=getVal('p_tajwid').trim()||'-',tambahan=getVal('p_tambahan').trim()||'-',guru=currentUser?currentUser.nama:(db.profil?db.profil.kepala:''),jilid=sObj?sObj.jilid:'-',prestasiObj={dateIso:dateIso,tanggal:now,santri:sObj?sObj.nama:nama,nisSantri:nis,jilid:jilid,guruPengampu:guru,klasikal:klasikal,kitab:kitab,doa:doa,surat:surat,alquran:alquran,sholat:sholat,tajwid:tajwid,tambahan:tambahan};var result=await supabaseClient.from('prestasi').insert([prestasiObj]).select();db.prestasi.unshift(result.data[0]);closeModal('modalPrestasi');if(input)input.value='';if(hidden)hidden.value='';alert('✅ Prestasi dicatat!');setTimeout(function(){openModal('modalPrestasi')},300);renderAll()}catch(err){alert('❌ '+err.message)}}
 async function saveKenaikan(e){e.preventDefault();try{var tgl=new Date(),tanggal=tgl.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}),hidden=getEl('k_santri_val'),input=getEl('search_santri_kenaikan'),nama=(hidden?hidden.value:'')||(input?input.value.trim():'');if(!nama){alert('❌ Pilih santri!');return}var sObj=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nama.toLowerCase().trim()===nama.toLowerCase().trim()){sObj=db.santri[i];break}}var nis=sObj?sObj.nis:'';if(!nis){alert('❌ Santri tidak punya NIS!');return}var target=getVal('k_target')||'Jilid 1',status=getVal('k_status')||'Lulus & Naik',nJilid=parseInt(getVal('k_nilai_jilid'))||0,nDoa=parseInt(getVal('k_nilai_doa'))||0,nSholat=parseInt(getVal('k_nilai_sholat'))||0,nSurat=parseInt(getVal('k_nilai_surat'))||0,nTajwid=parseInt(getVal('k_nilai_tajwid'))||0,nGhorib=parseInt(getVal('k_nilai_ghorib'))||0,foto=document.getElementById('k_foto').value||null,obj={santri:nama,nisSantri:nis,target:target,nilaiJilid:nJilid,nilaiDoa:nDoa,nilaiSholat:nSholat,nilaiSurat:nSurat,nilaiTajwid:nTajwid,nilaiGhorib:nGhorib,status:status,tanggal:tanggal,dateIso:getTodayLocal(),foto:foto};var result=await supabaseClient.from('kenaikan').insert([obj]).select();if(result.error)throw result.error;db.kenaikan.push(result.data[0]);if(target==='Lulus'||status.indexOf('Selesai')!==-1){if(sObj){await hapusPrestasiSantri(sObj.nama);await supabaseClient.from('santri').delete().eq('id',sObj.id);db.santri=db.santri.filter(function(s){return s.id!==sObj.id})}alert('✅ '+nama+' LULUS!')}else{if(sObj){sObj.jilid=target;var found=null;for(var k=0;k<db.ustadz.length;k++){if(db.ustadz[k].jilid===target||db.ustadz[k].jilid.indexOf('Semua')!==-1){found=db.ustadz[k];break}}if(found)sObj.guru=found.nama;await supabaseClient.from('santri').update({jilid:target,guru:sObj.guru}).eq('id',sObj.id)}alert('✅ Kenaikan disimpan.')}closeModal('modalKenaikan');if(input)input.value='';if(hidden)hidden.value='';renderAll()}catch(err){console.error('Error saveKenaikan:',err);alert('❌ Gagal menyimpan: '+err.message)}}
 async function saveBayar(e){e.preventDefault();try{var tgl=new Date(),tanggal=tgl.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}),dateIso=getTodayLocal(),hidden=getEl('b_santri_val'),input=getEl('search_santri_bayar'),nama=(hidden?hidden.value:'')||(input?input.value.trim():'');if(!nama){alert('❌ Pilih santri!');return}var sObj=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nama.toLowerCase().trim()===nama.toLowerCase().trim()){sObj=db.santri[i];break}}var nis=sObj?sObj.nis:'';if(!nis){alert('❌ Santri tidak punya NIS!');return}var jenis=getVal('b_jenis'),jumlah=Number(getVal('b_jumlah')),ket=getVal('b_ket'),realNama=sObj?sObj.nama:nama,jilid=sObj?sObj.jilid:'-',penerima=currentUser?currentUser.nama:(db.profil?db.profil.kepala:''),bayarObj={tanggal:tanggal,dateIso:dateIso,nis:nis,santri:realNama,jilid:jilid,jenis:jenis,jumlah:jumlah,ket:ket,penerima:penerima};var result=await supabaseClient.from('bayar').insert([bayarObj]).select();db.bayar.unshift(result.data[0]);var mutasi={dateIso:dateIso,tanggal:tanggal,uraian:'Pembayaran '+jenis+' oleh '+realNama+' (NIS: '+nis+') - '+ket,jenis:'Masuk',masuk:jumlah,keluar:0};var mutasiResult=await supabaseClient.from('mutasi').insert([mutasi]).select();if(mutasiResult.data)db.mutasi.unshift(mutasiResult.data[0]);closeModal('modalBayar');if(input)input.value='';if(hidden)hidden.value='';alert('✅ Pembayaran dicatat!');renderAll()}catch(err){alert('❌ '+err.message)}}
 async function saveKasMasukManual(e){e.preventDefault();try{var tgl=new Date(),obj={dateIso:getTodayLocal(),tanggal:tgl.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}),uraian:getVal('km_ket'),jenis:'Masuk',masuk:Number(getVal('km_jumlah')),keluar:0};var result=await supabaseClient.from('mutasi').insert([obj]).select();db.mutasi.unshift(result.data[0]);closeModal('modalKasMasuk');var form=getEl('modalKasMasuk');if(form)form.querySelector('form').reset();alert('✅ Kas masuk!');renderAll()}catch(err){alert('❌ '+err.message)}}
@@ -658,7 +1219,7 @@ function renderDashboard(){try{setText('stat-total-santri',db.santri.length);set
 // ============================================================
 // RENDER - DASHBOARD WALI
 // ============================================================
-function renderDashboardWali(){try{if(!currentUser||currentUser.role!=='Wali Santri')return;var nis=currentUser.ref,s=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nis===nis){s=db.santri[i];break}}var nama=s?s.nama:(currentUser.nama||'Ananda'),jilid=s?s.jilid:'-',bulanan=db.profil?db.profil.bulanan||'0':'0',metode=db.profil?db.profil.metode:'Metode',dashHeader=getEl('dash-header-container');if(dashHeader){var existingStats=dashHeader.querySelector('.wali-stats-container');if(!existingStats){var statsHtml='<div class="wali-stats-container grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-emerald-200/30">';statsHtml+='<div class="text-center"><p class="counter-label text-emerald-700">👨‍🎓 Jumlah Santri</p><p class="counter-value text-emerald-800" id="wali-santri-count">'+db.santri.length+'</p></div>';statsHtml+='<div class="text-center"><p class="counter-label text-emerald-700">👨‍🏫 Jumlah Guru</p><p class="counter-value text-emerald-800" id="wali-guru-count">'+db.ustadz.length+'</p></div>';statsHtml+='<div class="text-center"><p class="counter-label text-emerald-700">💰 Syahriyah/Bulanan</p><p class="counter-value text-emerald-800">Rp '+parseInt(bulanan).toLocaleString('id-ID')+'</p></div>';statsHtml+='</div>';statsHtml+='<div class="bg-amber-400/30 text-amber-900 text-xs font-medium p-2 rounded-xl mt-2 text-center border border-amber-400/50">';statsHtml+='<i class="fa-solid fa-info-circle mr-1"></i> Diharap wali santri untuk membayar Iuran Syahriyah/Bulanan pada awal bulan';statsHtml+='</div>';dashHeader.insertAdjacentHTML('beforeend',statsHtml)}else{var santriEl=getEl('wali-santri-count'),guruEl=getEl('wali-guru-count');if(santriEl)santriEl.innerText=db.santri.length;if(guruEl)guruEl.innerText=db.ustadz.length;var syahriyahEls=dashHeader.querySelectorAll('.wali-stats-container .counter-value');if(syahriyahEls&&syahriyahEls.length>=3){syahriyahEls[2].innerText='Rp '+parseInt(bulanan).toLocaleString('id-ID')}}}var p='';for(var j=0;j<db.informasi.length;j++){var info=db.informasi[j];p+='<div class="bg-amber-50/50 p-3 rounded-2xl border border-amber-200/70"><h4 class="font-bold text-amber-900 text-sm"><i class="fa-solid fa-bullhorn text-amber-600"></i> '+(j+1)+'. '+info.judul+'</h4><p class="text-sm text-slate-700">'+info.isi+'</p></div>'}var pl=getEl('dash-pengumuman-wali-list');if(pl)pl.innerHTML=p||'<p class="text-slate-400 text-sm">Belum ada pengumuman.</p>';var prestasiList=db.prestasi.filter(function(pst){return pst.santri.toLowerCase()===nama.toLowerCase()});prestasiList.sort(function(a,b){return new Date(b.dateIso)-new Date(a.dateIso)});var ph='';for(var k=0;k<prestasiList.length;k++){var pst=prestasiList[k];ph+='<tr><td class="p-3">'+(k+1)+'</td><td class="p-3 text-slate-500">'+pst.tanggal+'</td><td class="p-3"><span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-xs font-semibold">'+(pst.jilid||'-')+'</span></td><td class="p-3 text-sm font-semibold text-emerald-800">'+(pst.guruPengampu||'-')+'</td><td class="p-3 text-sm">'+(pst.klasikal||'-')+'</td><td class="p-3 text-sm">'+(pst.kitab||'-')+'</td><td class="p-3 text-sm">'+(pst.doa||'-')+'</td><td class="p-3 text-sm">'+(pst.surat||'-')+'</td><td class="p-3 text-sm">'+(pst.alquran||'-')+'</td><td class="p-3 text-sm">'+(pst.sholat||'-')+'</td><td class="p-3 text-sm">'+(pst.tajwid||'-')+'</td><td class="p-3 text-sm">'+(pst.tambahan||'-')+'</td></tr>'}var tb=getEl('table-prestasi-wali-body');if(tb)tb.innerHTML=ph||'<tr><td colspan="12" class="p-3 text-center text-slate-400 text-sm">Belum ada prestasi.</td></tr>';var pembayaranList=db.bayar.filter(function(by){return(by.nis&&by.nis===nis)||by.santri.toLowerCase()===nama.toLowerCase()});pembayaranList.sort(function(a,b){return new Date(b.dateIso)-new Date(a.dateIso)});var bh='';for(var l=0;l<pembayaranList.length;l++){var by=pembayaranList[l];bh+='<tr><td class="p-3">'+(l+1)+'</td><td class="p-3 text-slate-500">'+by.tanggal+'</td><td class="p-3 font-medium">'+by.santri+'</td><td class="p-3"><span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-xs font-semibold">'+(by.jilid||'-')+'</span></td><td class="p-3 text-sm text-slate-700">'+(by.penerima||'-')+'</td><td class="p-3 font-semibold text-sm">'+by.jenis+'</td><td class="p-3 text-sm text-slate-600">'+by.ket+'</td><td class="p-3 font-bold text-emerald-800 text-sm">Rp '+by.jumlah.toLocaleString('id-ID')+'</td></tr>'}var tb2=getEl('table-pembayaran-wali-body');if(tb2)tb2.innerHTML=bh||'<tr><td colspan="8" class="p-3 text-center text-slate-400 text-sm">Belum ada pembayaran.</td></tr>';var cp=getEl('dash-pesan-guru-list');if(!cp)return;var semua=[];for(var m=0;m<db.bayar.length;m++){var b=db.bayar[m];if(b.nis===nis){var pesan='Terimakasih atas pembayaran '+b.jenis+' '+b.ket+' sebesar Rp '+b.jumlah.toLocaleString('id-ID')+' dari Ananda '+b.santri+' Semoga membawa berkah.';pesan+='\n\nPenerima\n'+(b.penerima||(db.profil?db.profil.kepala:'Guru'));semua.push({tanggal:b.tanggal,dateIso:b.dateIso||'1970-01-01',isipesan:pesan,jenis:'💳 Pembayaran',badge:'bg-blue-100 text-blue-700'})}}for(var n=0;n<db.prestasi.length;n++){var p=db.prestasi[n];if(p.santri.toLowerCase()===nama.toLowerCase()){var list=[];if(p.klasikal&&p.klasikal!=='-')list.push('Klasikal: '+p.klasikal);if(p.kitab&&p.kitab!=='-')list.push(metode+': '+p.kitab);if(p.doa&&p.doa!=='-')list.push('Do\'a Harian: '+p.doa);if(p.surat&&p.surat!=='-')list.push('Surat Pendek: '+p.surat);if(p.alquran&&p.alquran!=='-')list.push('Fasholatan: '+p.alquran);if(p.sholat&&p.sholat!=='-')list.push('Tajwid: '+p.sholat);if(p.tajwid&&p.tajwid!=='-')list.push('Ghorib: '+p.tajwid);if(p.tambahan&&p.tambahan!=='-')list.push('Al-Qur\'an: '+p.tambahan);var pelajaran=list.length?list.join(', '):'tidak ada catatan',pesan='Ananda '+p.santri+' Jilid '+(p.jilid||'-')+' Pada Hari ini Telah mengikuti pelajaran: '+pelajaran+'. Semoga Termotivasi.';pesan+='\n\nHormat kami.\n'+(p.guruPengampu||(db.profil?db.profil.kepala:'Guru'));semua.push({tanggal:p.tanggal,dateIso:p.dateIso||'1970-01-01',isipesan:pesan,jenis:'📚 Prestasi',badge:'bg-purple-100 text-purple-700'})}}for(var o=0;o<db.kenaikan.length;o++){var k=db.kenaikan[o],isMatch=false;if(k.nisSantri&&k.nisSantri===nis)isMatch=true;if(!isMatch&&k.santri&&k.santri.toLowerCase()===nama.toLowerCase())isMatch=true;if(!isMatch){for(var sc=0;sc<db.santri.length;sc++){if(db.santri[sc].nama.toLowerCase().trim()===(k.santri||'').toLowerCase().trim()){if(db.santri[sc].nis===nis)isMatch=true;break}}}if(isMatch){var nList=[];if(parseInt(k.nilaiJilid)>0)nList.push(metode+': '+k.nilaiJilid);if(parseInt(k.nilaiDoa)>0)nList.push('Do\'a Harian: '+k.nilaiDoa);if(parseInt(k.nilaiSholat)>0)nList.push('Fasholatan: '+k.nilaiSholat);if(parseInt(k.nilaiSurat)>0)nList.push('Surat Pendek: '+k.nilaiSurat);if(parseInt(k.nilaiTajwid)>0)nList.push('Tajwid: '+k.nilaiTajwid);if(parseInt(k.nilaiGhorib)>0)nList.push('Ghorib: '+k.nilaiGhorib);var tglDisplay=k.tanggal||new Date().toLocaleDateString('id-ID'),dateIso=k.dateIso||'1970-01-01',nilaiText=nList.length?'\n📊 Dengan Nilai: '+nList.join(', ')+'.':'',pesan='🎉 Selamat! Ananda '+(k.santri||'Ananda')+' naik ke '+(k.target||'jilid berikutnya')+nilaiText+' Semoga Tambah Semangat!';pesan+='\n\nHormat kami.\nKepala '+(db.profil?db.profil.nama:'TPQ')+'\n'+(db.profil?db.profil.kepala:'Kepala TPQ');semua.push({tanggal:tglDisplay,dateIso:dateIso,isipesan:pesan,jenis:'🎓 Kenaikan Jilid',badge:'bg-amber-100 text-amber-700'})}}if(db.kegiatanLuar&&db.kegiatanLuar.length){for(var kl=0;kl<db.kegiatanLuar.length;kl++){var klData=db.kegiatanLuar[kl],pesan='Ananda '+nama+' Telah mengikuti 📢 '+klData.judul+' yang disertai oleh Semua Ustadz dan Ustadzah.';semua.push({tanggal:klData.tanggal||new Date().toLocaleDateString('id-ID'),dateIso:klData.dateIso||'1970-01-01',isipesan:pesan,jenis:'📢 Kegiatan Luar',badge:'bg-emerald-100 text-emerald-700'})}}semua.sort(function(a,b){return new Date(b.dateIso)-new Date(a.dateIso)});var top=semua.slice(0,10);if(!top.length){cp.innerHTML='<p class="text-slate-400 text-sm py-2 italic text-center">Belum ada pesan.</p><p class="text-xs text-slate-400 text-center">(NIS: '+nis+' | '+jilid+')</p>'}else{var html='';for(var r=0;r<top.length;r++){var ps=top[r],lines=ps.isipesan.split('\n'),displayText='';for(var lineIdx=0;lineIdx<lines.length;lineIdx++){if(lineIdx>0)displayText+='<br>';displayText+=lines[lineIdx]}html+='<div class="bg-white p-3 rounded-2xl border border-emerald-300 shadow-sm hover:shadow-md transition"><div class="flex justify-between items-center border-b border-emerald-100 pb-1"><span class="text-sm font-bold text-emerald-900"><i class="fa-solid fa-user-tie mr-1"></i> '+(r+1)+'. Pesan</span><span class="text-xs font-semibold '+(ps.badge||'bg-slate-100 text-slate-700')+' px-2 py-0.5 rounded-full">'+ps.jenis+'</span></div><div class="text-xs text-slate-400 mt-1">'+ps.tanggal+'</div><p class="text-sm text-slate-700 leading-relaxed pt-1 whitespace-pre-line">'+displayText+'</p></div>'}cp.innerHTML=html}var riwayatContainer=getEl('list-pesan-wali-pribadi');if(riwayatContainer){var pesanWaliList=db.pesanWali.filter(function(pw){return pw.namaSantri&&pw.namaSantri.toLowerCase()===nama.toLowerCase()});pesanWaliList.sort(function(a,b){return new Date(b.waktu)-new Date(a.waktu)});if(pesanWaliList.length===0){riwayatContainer.innerHTML='<p class="text-slate-400 text-sm italic">Belum ada pesan terkirim.</p>'}else{var rHtml='';for(var rw=0;rw<pesanWaliList.length;rw++){var pw=pesanWaliList[rw],isDibalas=pw.balasan&&pw.balasan!=='';rHtml+='<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">';rHtml+='<div class="flex justify-between items-center">';rHtml+='<span class="text-xs font-semibold '+(isDibalas?'text-emerald-600':'text-amber-600')+'">'+(isDibalas?'✅ Dibalas':'⏳ Belum dibalas')+'</span>';rHtml+='<span class="text-xs text-slate-400">'+(pw.waktu||'-')+'</span>';rHtml+='</div>';rHtml+='<p class="text-sm text-slate-700 mt-1">'+pw.pesan+'</p>';if(isDibalas){rHtml+='<div class="mt-2 pt-2 border-t border-slate-100">';rHtml+='<span class="text-xs font-semibold text-emerald-700">Balasan:</span>';rHtml+='<p class="text-sm text-slate-600">'+pw.balasan+'</p>';rHtml+='</div>'}rHtml+='</div>'}riwayatContainer.innerHTML=rHtml}}}catch(e){console.warn('Dashboard wali error:',e)}}
+function renderDashboardWali(){try{if(!currentUser||currentUser.role!=='Wali Santri')return;var nis=currentUser.ref,s=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nis===nis){s=db.santri[i];break}}var nama=s?s.nama:(currentUser.nama||'Ananda'),jilid=s?s.jilid:'-',bulanan=db.profil?db.profil.bulanan||'0':'0',metode=db.profil?db.profil.metode:'Metode',dashHeader=getEl('dash-header-container');if(dashHeader){var existingStats=dashHeader.querySelector('.wali-stats-container');if(!existingStats){var statsHtml='<div class="wali-stats-container grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-emerald-200/30">';statsHtml+='<div class="text-center"><p class="counter-label text-emerald-700">👨‍🎓 Jumlah Santri</p><p class="counter-value text-emerald-800" id="wali-santri-count">'+db.santri.length+'</p></div>';statsHtml+='<div class="text-center"><p class="counter-label text-emerald-700">👨‍🏫 Jumlah Guru</p><p class="counter-value text-emerald-800" id="wali-guru-count">'+db.ustadz.length+'</p></div>';statsHtml+='<div class="text-center"><p class="counter-label text-emerald-700">💰 Syahriyah/Bulanan</p><p class="counter-value text-emerald-800">Rp '+parseInt(bulanan).toLocaleString('id-ID')+'</p></div>';statsHtml+='</div>';statsHtml+='<div class="bg-amber-400/30 text-amber-900 text-xs font-medium p-2 rounded-xl mt-2 text-center border border-amber-400/50">';statsHtml+='<i class="fa-solid fa-info-circle mr-1"></i> Diharap wali santri untuk membayar Iuran Syahriyah/Bulanan pada awal bulan';statsHtml+='</div>';dashHeader.insertAdjacentHTML('beforeend',statsHtml)}else{var santriEl=getEl('wali-santri-count'),guruEl=getEl('wali-guru-count');if(santriEl)santriEl.innerText=db.santri.length;if(guruEl)guruEl.innerText=db.ustadz.length;var syahriyahEls=dashHeader.querySelectorAll('.wali-stats-container .counter-value');if(syahriyahEls&&syahriyahEls.length>=3){syahriyahEls[2].innerText='Rp '+parseInt(bulanan).toLocaleString('id-ID')}}}var p='';for(var j=0;j<db.informasi.length;j++){var info=db.informasi[j];p+='<div class="bg-amber-50/50 p-3 rounded-2xl border border-amber-200/70"><h4 class="font-bold text-amber-900 text-sm"><i class="fa-solid fa-bullhorn text-amber-600"></i> '+(j+1)+'. '+info.judul+'</h4><p class="text-sm text-slate-700">'+info.isi+'</p></div>'}var pl=getEl('dash-pengumuman-wali-list');if(pl)pl.innerHTML=p||'<p class="text-slate-400 text-sm">Belum ada pengumuman.</p>';var prestasiList=db.prestasi.filter(function(pst){return (pst.nisSantri!=null&&String(pst.nisSantri)===String(nis)) || (!pst.nisSantri && pst.santri && pst.santri.toLowerCase()===nama.toLowerCase())});prestasiList.sort(function(a,b){return new Date(b.dateIso)-new Date(a.dateIso)});var ph='';for(var k=0;k<prestasiList.length;k++){var pst=prestasiList[k];ph+='<tr><td class="p-3">'+(k+1)+'</td><td class="p-3 text-slate-500">'+pst.tanggal+'</td><td class="p-3"><span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-xs font-semibold">'+(pst.jilid||'-')+'</span></td><td class="p-3 text-sm font-semibold text-emerald-800">'+(pst.guruPengampu||'-')+'</td><td class="p-3 text-sm">'+(pst.klasikal||'-')+'</td><td class="p-3 text-sm">'+(pst.kitab||'-')+'</td><td class="p-3 text-sm">'+(pst.doa||'-')+'</td><td class="p-3 text-sm">'+(pst.surat||'-')+'</td><td class="p-3 text-sm">'+(pst.alquran||'-')+'</td><td class="p-3 text-sm">'+(pst.sholat||'-')+'</td><td class="p-3 text-sm">'+(pst.tajwid||'-')+'</td><td class="p-3 text-sm">'+(pst.tambahan||'-')+'</td></tr>'}var tb=getEl('table-prestasi-wali-body');if(tb)tb.innerHTML=ph||'<tr><td colspan="12" class="p-3 text-center text-slate-400 text-sm">Belum ada prestasi.</td></tr>';var pembayaranList=db.bayar.filter(function(by){return(by.nis&&by.nis===nis)||by.santri.toLowerCase()===nama.toLowerCase()});pembayaranList.sort(function(a,b){return new Date(b.dateIso)-new Date(a.dateIso)});var bh='';for(var l=0;l<pembayaranList.length;l++){var by=pembayaranList[l];bh+='<tr><td class="p-3">'+(l+1)+'</td><td class="p-3 text-slate-500">'+by.tanggal+'</td><td class="p-3 font-medium">'+by.santri+'</td><td class="p-3"><span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-xs font-semibold">'+(by.jilid||'-')+'</span></td><td class="p-3 text-sm text-slate-700">'+(by.penerima||'-')+'</td><td class="p-3 font-semibold text-sm">'+by.jenis+'</td><td class="p-3 text-sm text-slate-600">'+by.ket+'</td><td class="p-3 font-bold text-emerald-800 text-sm">Rp '+by.jumlah.toLocaleString('id-ID')+'</td></tr>'}var tb2=getEl('table-pembayaran-wali-body');if(tb2)tb2.innerHTML=bh||'<tr><td colspan="8" class="p-3 text-center text-slate-400 text-sm">Belum ada pembayaran.</td></tr>';var cp=getEl('dash-pesan-guru-list');if(!cp)return;var semua=[];for(var m=0;m<db.bayar.length;m++){var b=db.bayar[m];if(b.nis===nis){var pesan='Terimakasih atas pembayaran '+b.jenis+' '+b.ket+' sebesar Rp '+b.jumlah.toLocaleString('id-ID')+' dari Ananda '+b.santri+' Semoga membawa berkah.';pesan+='\n\nPenerima\n'+(b.penerima||(db.profil?db.profil.kepala:'Guru'));semua.push({tanggal:b.tanggal,dateIso:b.dateIso||'1970-01-01',isipesan:pesan,jenis:'💳 Pembayaran',badge:'bg-blue-100 text-blue-700'})}}for(var n=0;n<db.prestasi.length;n++){var p=db.prestasi[n];if(p.santri.toLowerCase()===nama.toLowerCase()){var list=[];if(p.klasikal&&p.klasikal!=='-')list.push('Klasikal: '+p.klasikal);if(p.kitab&&p.kitab!=='-')list.push(metode+': '+p.kitab);if(p.doa&&p.doa!=='-')list.push('Do\'a Harian: '+p.doa);if(p.surat&&p.surat!=='-')list.push('Surat Pendek: '+p.surat);if(p.alquran&&p.alquran!=='-')list.push('Fasholatan: '+p.alquran);if(p.sholat&&p.sholat!=='-')list.push('Tajwid: '+p.sholat);if(p.tajwid&&p.tajwid!=='-')list.push('Ghorib: '+p.tajwid);if(p.tambahan&&p.tambahan!=='-')list.push('Al-Qur\'an: '+p.tambahan);var pelajaran=list.length?list.join(', '):'tidak ada catatan',pesan='Ananda '+p.santri+' Jilid '+(p.jilid||'-')+' Pada Hari ini Telah mengikuti pelajaran: '+pelajaran+'. Semoga Termotivasi.';pesan+='\n\nHormat kami.\n'+(p.guruPengampu||(db.profil?db.profil.kepala:'Guru'));semua.push({tanggal:p.tanggal,dateIso:p.dateIso||'1970-01-01',isipesan:pesan,jenis:'📚 Prestasi',badge:'bg-purple-100 text-purple-700'})}}for(var o=0;o<db.kenaikan.length;o++){var k=db.kenaikan[o],isMatch=false;if(k.nisSantri&&k.nisSantri===nis)isMatch=true;if(!isMatch&&k.santri&&k.santri.toLowerCase()===nama.toLowerCase())isMatch=true;if(!isMatch){for(var sc=0;sc<db.santri.length;sc++){if(db.santri[sc].nama.toLowerCase().trim()===(k.santri||'').toLowerCase().trim()){if(db.santri[sc].nis===nis)isMatch=true;break}}}if(isMatch){var nList=[];if(parseInt(k.nilaiJilid)>0)nList.push(metode+': '+k.nilaiJilid);if(parseInt(k.nilaiDoa)>0)nList.push('Do\'a Harian: '+k.nilaiDoa);if(parseInt(k.nilaiSholat)>0)nList.push('Fasholatan: '+k.nilaiSholat);if(parseInt(k.nilaiSurat)>0)nList.push('Surat Pendek: '+k.nilaiSurat);if(parseInt(k.nilaiTajwid)>0)nList.push('Tajwid: '+k.nilaiTajwid);if(parseInt(k.nilaiGhorib)>0)nList.push('Ghorib: '+k.nilaiGhorib);var tglDisplay=k.tanggal||new Date().toLocaleDateString('id-ID'),dateIso=k.dateIso||'1970-01-01',nilaiText=nList.length?'\n📊 Dengan Nilai: '+nList.join(', ')+'.':'',pesan='🎉 Selamat! Ananda '+(k.santri||'Ananda')+' naik ke '+(k.target||'jilid berikutnya')+nilaiText+' Semoga Tambah Semangat!';pesan+='\n\nHormat kami.\nKepala '+(db.profil?db.profil.nama:'TPQ')+'\n'+(db.profil?db.profil.kepala:'Kepala TPQ');semua.push({tanggal:tglDisplay,dateIso:dateIso,isipesan:pesan,jenis:'🎓 Kenaikan Jilid',badge:'bg-amber-100 text-amber-700'})}}if(db.kegiatanLuar&&db.kegiatanLuar.length){for(var kl=0;kl<db.kegiatanLuar.length;kl++){var klData=db.kegiatanLuar[kl],pesan='Ananda '+nama+' Telah mengikuti 📢 '+klData.judul+' yang disertai oleh Semua Ustadz dan Ustadzah.';semua.push({tanggal:klData.tanggal||new Date().toLocaleDateString('id-ID'),dateIso:klData.dateIso||'1970-01-01',isipesan:pesan,jenis:'📢 Kegiatan Luar',badge:'bg-emerald-100 text-emerald-700'})}}semua.sort(function(a,b){return new Date(b.dateIso)-new Date(a.dateIso)});var top=semua.slice(0,10);if(!top.length){cp.innerHTML='<p class="text-slate-400 text-sm py-2 italic text-center">Belum ada pesan.</p><p class="text-xs text-slate-400 text-center">(NIS: '+nis+' | '+jilid+')</p>'}else{var html='';for(var r=0;r<top.length;r++){var ps=top[r],lines=ps.isipesan.split('\n'),displayText='';for(var lineIdx=0;lineIdx<lines.length;lineIdx++){if(lineIdx>0)displayText+='<br>';displayText+=lines[lineIdx]}html+='<div class="bg-white p-3 rounded-2xl border border-emerald-300 shadow-sm hover:shadow-md transition"><div class="flex justify-between items-center border-b border-emerald-100 pb-1"><span class="text-sm font-bold text-emerald-900"><i class="fa-solid fa-user-tie mr-1"></i> '+(r+1)+'. Pesan</span><span class="text-xs font-semibold '+(ps.badge||'bg-slate-100 text-slate-700')+' px-2 py-0.5 rounded-full">'+ps.jenis+'</span></div><div class="text-xs text-slate-400 mt-1">'+ps.tanggal+'</div><p class="text-sm text-slate-700 leading-relaxed pt-1 whitespace-pre-line">'+displayText+'</p></div>'}cp.innerHTML=html}var riwayatContainer=getEl('list-pesan-wali-pribadi');if(riwayatContainer){var pesanWaliList=db.pesanWali.filter(function(pw){return (pw.user_id!=null&&String(pw.user_id)===String(currentUser.id)) || (pw.ref!=null&&String(pw.ref)===String(nis)) || (!pw.user_id&&!pw.ref&&pw.namaSantri&&pw.namaSantri.toLowerCase()===nama.toLowerCase())});pesanWaliList.sort(function(a,b){return new Date(b.waktu)-new Date(a.waktu)});if(pesanWaliList.length===0){riwayatContainer.innerHTML='<p class="text-slate-400 text-sm italic">Belum ada pesan terkirim.</p>'}else{var rHtml='';for(var rw=0;rw<pesanWaliList.length;rw++){var pw=pesanWaliList[rw],isDibalas=pw.balasan&&pw.balasan!=='';rHtml+='<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">';rHtml+='<div class="flex justify-between items-center">';rHtml+='<span class="text-xs font-semibold '+(isDibalas?'text-emerald-600':'text-amber-600')+'">'+(isDibalas?'✅ Dibalas':'⏳ Belum dibalas')+'</span>';rHtml+='<span class="text-xs text-slate-400">'+(pw.waktu||'-')+'</span>';rHtml+='</div>';rHtml+='<p class="text-sm text-slate-700 mt-1">'+pw.pesan+'</p>';if(isDibalas){rHtml+='<div class="mt-2 pt-2 border-t border-slate-100">';rHtml+='<span class="text-xs font-semibold text-emerald-700">Balasan:</span>';rHtml+='<p class="text-sm text-slate-600">'+pw.balasan+'</p>';rHtml+='</div>'}rHtml+='</div>'}riwayatContainer.innerHTML=rHtml}}}catch(e){console.warn('Dashboard wali error:',e)}}
 
 // ============================================================
 // RENDER - SANTRI, PRESTASI, KENAIKAN, PEMBAYARAN, MUTASI, USTADZ, USERS, INFORMASI, PESAN WALI
@@ -734,6 +1295,8 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(initBackupInf
 console.log('✅ SIAP LPQ - Siap digunakan!');
 console.log('✅ Fitur Upload Excel, Backup & Restore Aktif!');
 console.log('✅ Tema Hijau ke Emasan Mengkilap!');
+
 </script>
+
 </body>
 </html>
