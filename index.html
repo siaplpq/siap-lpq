@@ -50,10 +50,16 @@ async function initTenantFromURL() {
     if (!tenantKey) {
         tenantKey = window.location.hash.replace('#', '');
     }
-    
+
+    // Kompatibilitas deployment lama: bila GitHub Pages dibuka pada root
+    // tanpa ?tenant=... atau #tenant, gunakan tenant yang terakhir tersimpan.
+    // Jika belum ada, gunakan tenant produksi utama yang sudah disiapkan.
     if (!tenantKey) {
-        console.error('❌ Tidak ada tenant pada URL.');
-        return false;
+        try { tenantKey = localStorage.getItem('siaplpq_tenant_key') || ''; } catch(e) {}
+    }
+    if (!tenantKey) {
+        tenantKey = 'tpq-ihsan';
+        console.warn('⚠️ Tenant URL tidak ditemukan; menggunakan tenant produksi utama:', tenantKey);
     }
     
     var config = await loadTenantConfig(tenantKey);
@@ -67,6 +73,7 @@ async function initTenantFromURL() {
             alamat: config.alamat,
             warna: config.warna || 'from-emerald-900 via-teal-900 to-emerald-950'
         };
+        try { localStorage.setItem('siaplpq_tenant_key', String(config.tenant_key || tenantKey)); } catch(e) {}
         initTenantSupabaseClient();
         console.log('✅ Tenant:', config.nama);
         console.log('🔗 Supabase:', config.supabase_url);
@@ -207,10 +214,10 @@ header .text-lg{font-size:16px}header .text-[11px]{font-size:10px}header .px-4{p
 #user-search-input{padding:8px 14px;border:1px solid #e2e8f0;border-radius:12px;font-size:14px;width:100%;max-width:300px;outline:none;min-height:40px}
 #user-search-input:focus{border-color:#065f46;box-shadow:0 0 0 3px rgba(6,95,70,0.1)}
 @media (max-width:640px){.sertifikat-container{padding:16px;border-width:4px}.sertifikat-container .sudut{width:30px;height:30px}.sertifikat-container .bintang-sudut{font-size:16px}.sertifikat-container .bintang-sudut-kiri-atas{top:14px;left:14px}.sertifikat-container .bintang-sudut-kanan-atas{top:14px;right:14px}.sertifikat-container .bintang-sudut-kiri-bawah{bottom:14px;left:14px}.sertifikat-container .bintang-sudut-kanan-bawah{bottom:14px;right:14px}.sertifikat-container .arabesque{font-size:18px;letter-spacing:6px}.sertifikat-foto{width:90px;height:90px}#modalViewDokumen .modal-header .btn-download,#modalViewDokumen .modal-header .btn-close{padding:4px 10px;font-size:11px;min-height:28px}#modalViewDokumen .modal-header h3{font-size:14px}#foto-preview,#foto-placeholder{width:80px;height:80px}}
-.dash-counter-bg-v3{background:linear-gradient(135deg,#065f46 0%,#0a7e5e 30%,#c9a84c 70%,#b8953a 100%);color:#f5e6c8;box-shadow:0 4px 30px rgba(201,168,76,0.3),inset 0 1px 0 rgba(255,255,255,0.2)}
+.dash-counter-bg-v3{background:linear-gradient(135deg,#064e3b 0%,#047857 42%,#059669 72%,#10b981 100%);color:#ecfdf5;box-shadow:0 8px 30px rgba(4,120,87,0.25),inset 0 1px 0 rgba(255,255,255,0.18)}
 .dash-counter-card-v2{background:rgba(255,255,255,0.15);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(201,168,76,0.4);border-radius:1rem;padding:0.75rem 1.25rem;display:flex;align-items:center;gap:1rem;box-shadow:0 4px 20px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.2)}
-.dash-counter-card-v2 .counter-value{color:#f5e6c8;font-weight:700}
-.dash-counter-card-v2 .counter-label{color:#d4af37;font-weight:600}
+.dash-counter-card-v2 .counter-value{color:#ecfdf5;font-weight:700}
+.dash-counter-card-v2 .counter-label{color:#d1fae5;font-weight:600}
 .dash-counter-card-v2 .icon-wrapper{font-size:1.75rem;color:#c9a84c}
 .sidebar-footer-text{font-family:'Playfair Display',serif;font-style:italic;letter-spacing:0.5px;line-height:1.8;text-align:justify}
 
@@ -228,6 +235,57 @@ header{background:linear-gradient(135deg,#064e3b 0%,#047857 45%,#059669 72%,#10b
 #dash-header-container .text-amber-400{color:#a7f3d0!important}
 .dash-counter-card-v2{min-width:0!important;border:1px solid rgba(167,243,208,.25)!important;background:rgba(255,255,255,.10)!important;box-shadow:0 8px 18px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.14)!important;backdrop-filter:blur(8px)}
 #sidebar-copyright-footer{flex-shrink:0!important}
+</style>
+<style id="rev06-unified-role-design">
+/* REV_06: unified SIAP-LPQ visual identity across all roles */
+#app-body{background:linear-gradient(135deg,#f8fafc 0%,#ecfdf5 45%,#f1f5f9 100%)!important}
+header{background:linear-gradient(135deg,#064e3b 0%,#047857 45%,#059669 72%,#10b981 100%)!important;color:#ecfdf5!important}
+#dash-header-container{background:linear-gradient(135deg,#064e3b 0%,#047857 45%,#059669 72%,#10b981 100%)!important;border-color:rgba(167,243,208,.28)!important;color:#ecfdf5!important}
+#dash-header-container .text-amber-300,#dash-header-container .text-amber-100,#dash-header-container .text-amber-200,#dash-header-container .text-amber-400{color:#d1fae5!important}
+.nav-link{border:1px solid transparent}
+.nav-link:hover{border-color:rgba(110,231,183,.22)}
+/* Role identification stays subtle; it never changes the application theme. */
+.role-badge-unified{background:rgba(16,185,129,.10)!important;color:#065f46!important;border:1px solid rgba(16,185,129,.20)!important}
+</style>
+
+<style id="rev07-final-green-glossy">
+/* REV_07 FINAL: header + main dashboard are green glossy only. */
+main#main-content-area > header {
+  background:linear-gradient(135deg,#064e3b 0%,#047857 45%,#059669 72%,#10b981 100%) !important;
+  color:#ecfdf5 !important;
+  border-bottom:2px solid rgba(110,231,183,.55) !important;
+  box-shadow:0 4px 30px rgba(4,120,87,.28),inset 0 1px 0 rgba(255,255,255,.18) !important;
+}
+main#main-content-area > header .text-amber-300,
+main#main-content-area > header .text-amber-200,
+main#main-content-area > header .text-amber-100 { color:#d1fae5 !important; }
+main#main-content-area > header .text-amber-900 { color:#064e3b !important; }
+main#main-content-area > header .border-amber-300,
+main#main-content-area > header .border-amber-300\/30 { border-color:rgba(167,243,208,.35) !important; }
+#user-badge { background:rgba(236,253,245,.14) !important; color:#ecfdf5 !important; border-color:rgba(167,243,208,.35) !important; }
+#header-tpq-label { background:linear-gradient(90deg,#10b981,#34d399) !important; color:#064e3b !important; border-color:rgba(167,243,208,.45) !important; }
+#dash-header-container {
+  background:linear-gradient(135deg,#064e3b 0%,#047857 45%,#059669 72%,#10b981 100%) !important;
+  border:1px solid rgba(167,243,208,.30) !important;
+  color:#ecfdf5 !important;
+}
+#dash-header-container .text-amber-300,
+#dash-header-container .text-amber-200,
+#dash-header-container .text-amber-100 { color:#d1fae5 !important; }
+#dash-header-container .text-amber-400 { color:#a7f3d0 !important; }
+#dash-header-container .border-amber-400\/30 { border-color:rgba(167,243,208,.30) !important; }
+#dash-header-container .dash-counter-card-v2 {
+  background:rgba(255,255,255,.10) !important;
+  border:1px solid rgba(167,243,208,.25) !important;
+  box-shadow:0 8px 18px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.14) !important;
+}
+#dash-header-container .dash-counter-card-v2 .icon-wrapper {
+  background:rgba(236,253,245,.13) !important;
+  color:#ecfdf5 !important;
+  border-color:rgba(167,243,208,.25) !important;
+}
+#dash-header-container .counter-label { color:#d1fae5 !important; }
+#dash-header-container .counter-value { color:#ffffff !important; }
 </style>
 </head>
 <body id="app-body" class="bg-gradient-to-br from-slate-100 via-emerald-50/40 to-slate-100 font-sans text-slate-800 min-h-screen">
@@ -279,7 +337,7 @@ header{background:linear-gradient(135deg,#064e3b 0%,#047857 45%,#059669 72%,#10b
 <div class="flex items-center gap-3 truncate"><img id="sidebar-logo" src="https://api.iconify.design/fluent-emoji-flat:open-book.svg" class="w-10 h-10 object-contain bg-white/10 p-1 rounded-xl shadow-inner"><span id="sidebar-nama-tpq" class="font-bold tracking-wider text-sm truncate text-amber-300" style="text-shadow: 0 2px 8px rgba(212,175,55,0.3);">TPQ NU 04 AL IHSAN</span></div>
 <button onclick="toggleSidebar(event)" class="text-amber-300 hover:text-amber-200 btn-biasa p-1 rounded"><i class="fa-solid fa-xmark text-xl"></i></button></div>
 <nav id="sidebar-nav" class="flex-1 p-4 space-y-1.5 overflow-y-auto text-sm"></nav>
-<div id="sidebar-copyright-footer" class="px-3 py-2 border-t border-emerald-800/60 text-[10px] text-center bg-emerald-950/20 leading-tight cursor-pointer hover:bg-emerald-900/40 transition" onclick="openDeploymentInfo()"><div class="font-semibold text-emerald-200">Daneva.Studio @ 2026</div><div class="text-emerald-300/80">SIAP-LPQ <span id="sidebar-version-label">V.</span></div></div></aside>
+<div id="sidebar-copyright-footer" class="px-3 py-2 border-t border-emerald-800/60 text-[10px] text-center bg-emerald-950/20 leading-tight cursor-pointer hover:bg-emerald-900/40 transition" onclick="openDeploymentInfo()"><div class="font-semibold text-emerald-200">Daneva.Studio @ 2026</div><div class="text-emerald-300/80">SIAP-LPQ <span id="sidebar-version-label">V.06</span></div></div></aside>
 <main id="main-content-area" class="flex-1 flex flex-col h-screen overflow-y-auto">
 <header style="background:linear-gradient(135deg,#064e3b 0%,#047857 45%,#059669 72%,#10b981 100%);border-bottom:2px solid rgba(52,211,153,.65);box-shadow:0 4px 30px rgba(4,120,87,.28),inset 0 1px 0 rgba(255,255,255,.18);" class="p-3 px-4 flex justify-between items-center z-10 sticky top-0">
 <div class="flex items-center gap-2"><button class="text-amber-300 text-lg hover:text-amber-200 btn-biasa p-1.5 rounded-xl" onclick="toggleSidebar(event)"><i class="fa-solid fa-bars"></i></button><div><h1 id="page-title" class="text-xl md:text-2xl font-bold text-amber-300 drop-shadow-lg tracking-wide">Dashboard LPQ</h1><p class="text-[10px] font-semibold text-emerald-200 tracking-wider uppercase mt-0"><i class="fa-solid fa-mosque mr-1"></i>SISTEM INFORMASI ADMINISTRASI &amp; PRESTASI LPQ</p></div></div>
@@ -661,7 +719,7 @@ function setupSidebarEvents(){try{var sidebar=getEl('app-sidebar'),mainArea=getE
 function setupAutoFocus(formSelector){try{var form=document.querySelector(formSelector);if(!form)return;var inputs=form.querySelectorAll('input:not([type="hidden"]), select, textarea');if(!inputs.length)return;for(var i=0;i<inputs.length;i++){var inp=inputs[i];if(!inp.hasAttribute('data-next')&&i<inputs.length-1){inp.setAttribute('data-next',inputs[i+1].id)}}for(var j=0;j<inputs.length;j++){var inp=inputs[j];inp.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();var nextId=this.getAttribute('data-next');if(nextId){var nextEl=getEl(nextId);if(nextEl){nextEl.focus();if(nextEl.tagName==='SELECT'||nextEl.tagName==='INPUT'||nextEl.tagName==='TEXTAREA'){nextEl.select?nextEl.select():null}}}}})}var firstInput=inputs[0];if(firstInput&&!firstInput.disabled){setTimeout(function(){firstInput.focus();firstInput.select?firstInput.select():null},200)}}catch(e){}}
 function openWhatsAppFounder(){try{var namaTPQ=db.profil&&db.profil.nama?db.profil.nama:(window.__TENANT&&window.__TENANT.nama)||'TPQ';var alamat=db.profil&&db.profil.alamat?db.profil.alamat:(window.__TENANT&&window.__TENANT.alamat)||'';var namaUser=currentUser&&currentUser.nama?currentUser.nama:'Pengguna';var pesan='Assalamualaikum. Saya '+namaUser+' dari '+namaTPQ+' alamat '+alamat+' ingin berkonsultasi tentang Aplikasi SIAP-LPQ ini. Terimakasih.';window.open('https://wa.me/6283198740074?text='+encodeURIComponent(pesan),'_blank')}catch(e){alert('❌ Gagal membuka WhatsApp: '+e.message)}}
 function openQuranOnline(){window.open('https://tanzil.net/?embed=true','_blank')}
-function openDeploymentInfo(){try{var v='V.04';var content='<div class="bg-emerald-50 rounded-2xl p-3 border border-emerald-200"><div class="font-bold text-emerald-900">Daneva.Studio @ 2026</div><div class="text-slate-600">SIAP-LPQ '+v+'</div></div><div><span class="font-semibold text-slate-700">Founder:</span> Ahmad Fathunnur</div><div><span class="font-semibold text-slate-700">WhatsApp:</span> <a href="#" onclick="openWhatsAppFounder();return false" class="text-emerald-700 font-bold underline">083198740074</a></div><div><span class="font-semibold text-slate-700">Tenant:</span> '+((db.profil&&db.profil.nama)||'TPQ')+'</div><div><span class="font-semibold text-slate-700">Environment:</span> Multi-Tenant</div><div><span class="font-semibold text-slate-700">Deployment:</span> '+new Date().toLocaleString('id-ID')+'</div>';var el=getEl('deployment-info-content');if(el)el.innerHTML=content;var modal=getEl('modalDeploymentInfo');if(modal)modal.classList.remove('hidden')}catch(e){}}
+function openDeploymentInfo(){try{var v='V.05';var content='<div class="bg-emerald-50 rounded-2xl p-3 border border-emerald-200"><div class="font-bold text-emerald-900">Daneva.Studio @ 2026</div><div class="text-slate-600">SIAP-LPQ '+v+'</div></div><div><span class="font-semibold text-slate-700">Founder:</span> Ahmad Fathunnur</div><div><span class="font-semibold text-slate-700">WhatsApp:</span> <a href="#" onclick="openWhatsAppFounder();return false" class="text-emerald-700 font-bold underline">083198740074</a></div><div><span class="font-semibold text-slate-700">Tenant:</span> '+((db.profil&&db.profil.nama)||'TPQ')+'</div><div><span class="font-semibold text-slate-700">Environment:</span> Multi-Tenant</div><div><span class="font-semibold text-slate-700">Deployment:</span> '+new Date().toLocaleString('id-ID')+'</div>';var el=getEl('deployment-info-content');if(el)el.innerHTML=content;var modal=getEl('modalDeploymentInfo');if(modal)modal.classList.remove('hidden')}catch(e){}}
 function renderAnalisisSantri(){try{var sel=getEl('analisis-santri-select'),out=getEl('analisis-santri-result');if(!sel||!out)return;var nis=sel.value,s=null;for(var i=0;i<db.santri.length;i++){if(String(db.santri[i].nis)===String(nis)){s=db.santri[i];break}}if(!s){out.innerHTML='<div class="bg-white p-5 rounded-2xl">Belum ada santri.</div>';return}var k=db.kenaikan.filter(function(x){return String(x.nisSantri)===String(nis)}),p=db.prestasi.filter(function(x){return String(x.nisSantri)===String(nis)}),b=db.bayar.filter(function(x){return String(x.nis||'')===String(nis)}),w=db.pesanWali.filter(function(x){return String(x.ref||'')===String(nis)||String(x.username_sekarang||'')===String(nis)});k.sort(function(a,b){return new Date(b.dateIso||0)-new Date(a.dateIso||0)});var last=k.length?k[0]:null;var status=k.length?(last.status||'Ada riwayat kenaikan'):'Belum ada kenaikan tercatat';var score=p.length?Math.min(100,Math.round((p.length/20)*100)):0;var bayarTotal=b.reduce(function(a,x){return a+(Number(x.jumlah)||0)},0);var komunikasi=w.length?'Aktif':'Belum ada';var level=score>=75?'Baik':(score>=40?'Berkembang':'Perlu perhatian');out.innerHTML='<div class="bg-white rounded-3xl p-5 shadow-xl border border-slate-200"><h3 class="font-extrabold text-emerald-900 text-lg">'+s.nama+'</h3><p class="text-sm text-slate-500">NIS '+s.nis+' · '+(s.jilid||'-')+'</p><div class="grid grid-cols-2 gap-3 mt-4"><div class="bg-emerald-50 rounded-2xl p-3"><div class="text-xs text-slate-500">Prestasi</div><div class="text-2xl font-extrabold text-emerald-800">'+p.length+'</div></div><div class="bg-emerald-50 rounded-2xl p-3"><div class="text-xs text-slate-500">Kenaikan</div><div class="text-2xl font-extrabold text-emerald-800">'+k.length+'</div></div><div class="bg-slate-50 rounded-2xl p-3"><div class="text-xs text-slate-500">Pembayaran</div><div class="text-lg font-extrabold text-slate-800">Rp '+bayarTotal.toLocaleString('id-ID')+'</div></div><div class="bg-slate-50 rounded-2xl p-3"><div class="text-xs text-slate-500">Pesan wali</div><div class="text-2xl font-extrabold text-slate-800">'+w.length+'</div></div></div></div><div class="bg-white rounded-3xl p-5 shadow-xl border border-slate-200"><h3 class="font-extrabold text-emerald-900">Kesimpulan</h3><div class="mt-3 space-y-2 text-sm text-slate-700"><p><b>Perkembangan:</b> '+level+'</p><p><b>Kenaikan terakhir:</b> '+(last?(last.target||'-')+' · '+(last.dateIso||last.tanggal||'-'):'-')+'</p><p><b>Status terakhir:</b> '+status+'</p><p><b>Komunikasi wali:</b> '+komunikasi+'</p><p class="pt-2 border-t"><b>Catatan:</b> Analisis ini bersifat ringkasan administratif berdasarkan data yang tersedia, bukan penilaian klinis atau akademik final.</p></div></div>'}catch(e){console.warn('Analisis error',e)}}
 function initAnalisis(){try{var sel=getEl('analisis-santri-select');if(!sel)return;var h='';for(var i=0;i<db.santri.length;i++){var s=db.santri[i];h+='<option value="'+s.nis+'">'+s.nama+' — '+s.nis+'</option>'}sel.innerHTML=h;renderAnalisisSantri()}catch(e){}}
 
@@ -764,7 +822,7 @@ async function loadAllData() {
 document.addEventListener('DOMContentLoaded', function() {
     initTenantFromURL().then(function(tenantReady) {
         if (!tenantReady) {
-            document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;padding:24px;font-family:system-ui,sans-serif;"><div style="max-width:520px;background:white;border:1px solid #e2e8f0;border-radius:20px;padding:28px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08);"><div style="font-size:42px;margin-bottom:12px;">⚠️</div><h2 style="color:#065f46;margin:0 0 8px;font-size:22px;">Lembaga Tidak Ditemukan</h2><p style="color:#64748b;margin:0;">URL aplikasi harus memiliki kode tenant yang terdaftar dan aktif.</p></div></div>';
+            document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;padding:24px;font-family:system-ui,sans-serif;"><div style="max-width:520px;background:white;border:1px solid #e2e8f0;border-radius:20px;padding:28px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08);"><div style="font-size:42px;margin-bottom:12px;">⚠️</div><h2 style="color:#065f46;margin:0 0 8px;font-size:22px;">Lembaga Tidak Ditemukan</h2><p style="color:#64748b;margin:0;">Konfigurasi tenant tidak dapat dimuat. Periksa koneksi atau kode tenant.</p></div></div>';
             return;
         }
         if (window.__TENANT) {
@@ -904,9 +962,9 @@ function showSection(id) {
         var navLinks = document.querySelectorAll('.nav-link');
         for (var j = 0; j < navLinks.length; j++) {
             var l = navLinks[j];
-            l.className = "nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa";
+            l.className = "nav-link flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-100 font-semibold transition transform hover:translate-x-1 btn-biasa";
             if (l.getAttribute('onclick') && l.getAttribute('onclick').indexOf(id) !== -1) {
-                l.className = "nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa";
+                l.className = "nav-link flex items-center gap-3 p-3 rounded-xl bg-emerald-500 text-white font-bold shadow-md transition transform hover:translate-x-1 btn-biasa";
             }
         }
         var titles = {
@@ -1010,19 +1068,13 @@ function applyUserTheme(role) {
         var s = getEl('app-sidebar');
         var header = getEl('dash-header-container');
         if (!b || !s) return;
+        // SIAP-LPQ Design System: one visual identity for every role.
+        // Role still controls permissions/menu; it no longer changes the page theme.
+        b.className = 'bg-gradient-to-br from-slate-50 via-emerald-50/30 to-slate-100 font-sans text-slate-800 min-h-screen';
         s.className = 'w-64 bg-gradient-to-b from-emerald-900 via-emerald-950 to-teal-950 text-white flex flex-col shadow-2xl border-r border-emerald-800/50 absolute md:relative z-30 h-full transition-transform duration-300 -translate-x-full md:-translate-x-full';
         if (header) {
-            header.className = 'relative rounded-3xl p-5 md:p-8 shadow-2xl overflow-hidden border-2 border-amber-400/30 card-3d dash-counter-bg-v3';
-            header.style.color = '#f5e6c8';
-        }
-        if (role === 'Kepala') {
-            b.className = "bg-gradient-to-br from-slate-100 via-emerald-50/40 to-slate-100 font-sans text-slate-800 min-h-screen";
-        } else if (role === 'Bendahara') {
-            b.className = "bg-gradient-to-br from-amber-50 via-yellow-50/40 to-amber-100 font-sans text-slate-800 min-h-screen";
-        } else if (role === 'Guru') {
-            b.className = "bg-gradient-to-br from-sky-50 via-blue-50/40 to-sky-100 font-sans text-slate-800 min-h-screen";
-        } else if (role === 'Wali Santri') {
-            b.className = "bg-gradient-to-br from-purple-50 via-fuchsia-50/40 to-pink-100 font-sans text-slate-800 min-h-screen";
+            header.className = 'relative rounded-3xl p-5 md:p-8 shadow-2xl overflow-hidden border border-emerald-300/25 card-3d dash-counter-bg-v3';
+            header.style.color = '#ecfdf5';
         }
     } catch(e) {}
 }
@@ -1067,7 +1119,7 @@ function getSidebarItems(role) {
     return items;
 }
 
-function updateSidebarCopyright(){try{var footer=getEl('sidebar-copyright-footer');if(!footer)return;var v='V.04';footer.innerHTML='<div class="font-semibold text-emerald-200">Daneva.Studio @ 2026</div><div class="text-emerald-300/80">SIAP-LPQ '+v+'</div>';}catch(e){}}
+function updateSidebarCopyright(){try{var footer=getEl('sidebar-copyright-footer');if(!footer)return;var v='V.05';footer.innerHTML='<div class="font-semibold text-emerald-200">Daneva.Studio @ 2026</div><div class="text-emerald-300/80">SIAP-LPQ '+v+'</div>';}catch(e){}}
 
 // ============================================================
 function handleModalSearchInput(inputId,dropdownId,hiddenValId){try{var input=getEl(inputId);if(!input)return;var q=input.value.toLowerCase(),drop=getEl(dropdownId);if(!drop)return;var list=db.santri||[];if(hiddenValId==='b_santri_val'&&currentUser&&currentUser.role==='Guru'){var g=null;for(var i=0;i<(db.ustadz||[]).length;i++){if(db.ustadz[i].nama.toLowerCase()===currentUser.nama.toLowerCase()){g=db.ustadz[i];break}}if(g&&g.jilid&&g.jilid.indexOf('Semua')===-1){list=list.filter(function(s){return s.jilid&&s.jilid.toLowerCase()===g.jilid.toLowerCase()})}}if(q&&q.trim()){list=list.filter(function(s){return(s.nama&&s.nama.toLowerCase().indexOf(q)!==-1)||(s.nis&&s.nis.toLowerCase().indexOf(q)!==-1)})}if(!list||!list.length){drop.innerHTML='<div class="searchable-dropdown-item text-slate-400">Santri tidak ditemukan</div>';drop.style.display='block';return}var html='';for(var j=0;j<list.length;j++){var s=list[j],label=s.nama+' - NIS: '+(s.nis||'-')+' ('+(s.jilid||'-')+')';html+='<div class="searchable-dropdown-item" onclick="selectSantriItem(\''+inputId+'\',\''+dropdownId+'\',\''+hiddenValId+'\',\''+(s.nama||'').replace(/'/g,"\\'")+'\',\''+label+'\')">'+label+'</div>'}drop.innerHTML=html;drop.style.display='block'}catch(e){}}
@@ -1220,7 +1272,7 @@ function renderDaftarPenerima(){try{var container=getEl('daftar-penerima-body'),
 function getStatusPenerima(key){try{var data=JSON.parse(localStorage.getItem('status_penerima')||'{}');return data[key]||'belum'}catch(e){return'belum'}}
 function toggleStatusPenerima(key){try{var data=JSON.parse(localStorage.getItem('status_penerima')||'{}'),current=data[key]||'belum';data[key]=(current==='sudah')?'belum':'sudah';localStorage.setItem('status_penerima',JSON.stringify(data));renderDaftarPenerima()}catch(e){}}
 function renderUstadz(){try{var h='',isGuru=currentUser&&currentUser.role==='Guru',sorted=[...db.ustadz].sort(function(a,b){return new Date(b.tmt)-new Date(a.tmt)});for(var i=0;i<sorted.length;i++){var u=sorted[i],aksi='';if(!isGuru){aksi='<button onclick="editUstadz(\''+u.id+'\')" class="text-amber-600 hover:text-amber-800 p-1 text-base"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteUstadz(\''+u.id+'\')" class="text-rose-500 hover:text-rose-700 p-1 text-base"><i class="fa-solid fa-trash"></i></button>'}else{aksi='<span class="text-slate-400 text-xs"><i class="fa-solid fa-eye"></i> Lihat</span>'}h+='<tr><td class="p-3">'+(i+1)+'</td><td class="p-3 font-mono font-bold text-emerald-900">'+(u.nig||'-')+'</td><td class="p-3 font-medium">'+u.nama+'</td><td class="p-3"><a href="https://wa.me/62'+u.wa.replace(/^0+/,'')+'" target="_blank" class="text-emerald-700 hover:underline"><i class="fa-brands fa-whatsapp"></i> '+u.wa+'</a></td><td class="p-3"><span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-semibold">'+(u.jilid||'-')+'</span></td><td class="p-3 text-slate-600">'+(u.tmt||'-')+'</td><td class="p-3 font-semibold text-emerald-800">'+hitungMasaPengabdian(u.tmt)+'</td><td class="p-3 text-center">'+aksi+'</td></tr>'}var el=getEl('table-ustadz-body');if(el)el.innerHTML=h||'<tr><td colspan="8" class="p-3 text-center text-slate-400">Belum ada guru.</td></tr>'}catch(e){}}
-function renderUsers(){try{sortUsersByRole();var search=getEl('user-search-input'),q=search?search.value.toLowerCase().trim():'',filtered=db.users;if(q){filtered=filtered.filter(function(u){return(u.username||'').toLowerCase().indexOf(q)!==-1||(u.nama||'').toLowerCase().indexOf(q)!==-1||(u.role||'').toLowerCase().indexOf(q)!==-1})}var countEl=getEl('user-search-count');if(countEl)countEl.innerText=filtered.length;var html='';for(var i=0;i<filtered.length;i++){var u=filtered[i],color=u.role==='Kepala'?'bg-purple-100 text-purple-800':(u.role==='Bendahara'?'bg-amber-100 text-amber-800':(u.role==='Wali Santri'?'bg-teal-100 text-teal-800':'bg-blue-100 text-blue-800'));html+='<tr><td class="p-3">'+(i+1)+'</td><td class="p-3 font-mono font-bold text-emerald-900">'+u.username+'</td><td class="p-3 font-medium">'+u.nama+'</td><td class="p-3 font-mono text-slate-600 font-bold">'+(u.password||'-')+'</td><td class="p-3"><span class="'+color+' px-2 py-0.5 rounded-md font-semibold">'+u.role+'</span>'+(u.berhakUji?' <span class="ml-1 bg-emerald-100 text-emerald-800 text-xs px-1.5 py-0.5 rounded font-bold">Uji+</span>':'')+'</td><td class="p-3 text-slate-600 font-mono">'+(u.ref||'-')+'</td><td class="p-3 text-center"><button onclick="editUser(\''+u.id+'\')" class="text-amber-600 hover:text-amber-800 p-1 text-base"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteUser(\''+u.id+'\')" class="text-rose-500 hover:text-rose-700 p-1 text-base"><i class="fa-solid fa-trash"></i></button></td></tr>'}var el=getEl('table-user-body');if(el)el.innerHTML=html||'<tr><td colspan="7" class="p-3 text-center text-slate-400">Belum ada user.</td></tr>'}catch(e){}}
+function renderUsers(){try{sortUsersByRole();var search=getEl('user-search-input'),q=search?search.value.toLowerCase().trim():'',filtered=db.users;if(q){filtered=filtered.filter(function(u){return(u.username||'').toLowerCase().indexOf(q)!==-1||(u.nama||'').toLowerCase().indexOf(q)!==-1||(u.role||'').toLowerCase().indexOf(q)!==-1})}var countEl=getEl('user-search-count');if(countEl)countEl.innerText=filtered.length;var html='';for(var i=0;i<filtered.length;i++){var u=filtered[i],color='role-badge-unified';html+='<tr><td class="p-3">'+(i+1)+'</td><td class="p-3 font-mono font-bold text-emerald-900">'+u.username+'</td><td class="p-3 font-medium">'+u.nama+'</td><td class="p-3 font-mono text-slate-600 font-bold">'+(u.password||'-')+'</td><td class="p-3"><span class="'+color+' px-2 py-0.5 rounded-md font-semibold">'+u.role+'</span>'+(u.berhakUji?' <span class="ml-1 bg-emerald-100 text-emerald-800 text-xs px-1.5 py-0.5 rounded font-bold">Uji+</span>':'')+'</td><td class="p-3 text-slate-600 font-mono">'+(u.ref||'-')+'</td><td class="p-3 text-center"><button onclick="editUser(\''+u.id+'\')" class="text-amber-600 hover:text-amber-800 p-1 text-base"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteUser(\''+u.id+'\')" class="text-rose-500 hover:text-rose-700 p-1 text-base"><i class="fa-solid fa-trash"></i></button></td></tr>'}var el=getEl('table-user-body');if(el)el.innerHTML=html||'<tr><td colspan="7" class="p-3 text-center text-slate-400">Belum ada user.</td></tr>'}catch(e){}}
 function renderInformasi(){try{var html='',sorted=[...db.informasi].reverse();for(var i=0;i<sorted.length;i++){var info=sorted[i],isEditable=currentUser&&(currentUser.role==='Kepala'||currentUser.role==='Guru');html+='<div class="bg-white/90 backdrop-blur p-4 rounded-3xl shadow-xl border border-slate-200/80 card-3d"><div class="flex justify-between items-start"><h4 class="font-bold text-emerald-900"><i class="fa-solid fa-circle-info text-emerald-600"></i> '+(i+1)+'. '+info.judul+'</h4>'+(isEditable?'<button onclick="deleteInfo(\''+info.id+'\')" class="text-rose-400 hover:text-rose-600 text-sm"><i class="fa-solid fa-trash"></i></button>':'')+'</div><p class="text-slate-600 text-sm mt-2">'+info.isi+'</p></div>'}var el=getEl('list-informasi');if(el)el.innerHTML=html||'<p class="text-slate-400 col-span-2 text-center py-4">Belum ada pengumuman.</p>'}catch(e){}}
 function renderPesanWali(){try{var cari=(getEl('filter-pesan-cari')?getEl('filter-pesan-cari').value.toLowerCase().trim():''),status=(getEl('filter-pesan-status')?getEl('filter-pesan-status').value:'semua'),urut=(getEl('filter-pesan-urut')?getEl('filter-pesan-urut').value:'terbaru'),list=db.pesanWali.slice();if(cari){list=list.filter(function(p){return(p.namaWali||'').toLowerCase().indexOf(cari)!==-1||(p.namaSantri||'').toLowerCase().indexOf(cari)!==-1})}if(status==='belum'){list=list.filter(function(p){return!p.balasan||p.balasan===''})}else if(status==='sudah'){list=list.filter(function(p){return p.balasan&&p.balasan!==''})}list.sort(function(a,b){var t1=new Date(a.waktu||a.created_at||0).getTime(),t2=new Date(b.waktu||b.created_at||0).getTime();return urut==='terbaru'?t2-t1:t1-t2});var total=db.pesanWali.length,belumCount=db.pesanWali.filter(function(p){return!p.balasan||p.balasan===''}).length,sudahCount=total-belumCount,el1=getEl('ringkasan-total-pesan');if(el1)el1.innerText=total;var el2=getEl('ringkasan-belum-dibalas');if(el2)el2.innerText=belumCount;var el3=getEl('ringkasan-sudah-dibalas');if(el3)el3.innerText=sudahCount;var el4=getEl('filter-pesan-jumlah-text');if(el4)el4.innerText=list.length;var container=getEl('list-pesan-wali-admin');if(!container)return;if(!list.length){container.innerHTML='<div class="bg-white/90 backdrop-blur p-8 rounded-3xl shadow-xl border border-slate-200/80 text-center"><div><i class="fa-solid fa-inbox text-4xl text-slate-300"></i><p class="text-slate-500 font-medium mt-2">Belum ada pesan</p></div></div>';return}var html='';for(var i=0;i<list.length;i++){var p=list[i],isRead=!!(p.balasan&&p.balasan!==''),card=isRead?'sudah-dibalas':'belum-dibalas',av=isRead?'sudah':'belum',init=p.namaWali?p.namaWali.charAt(0).toUpperCase():'?';html+='<div class="pesan-card '+card+' bg-white/90 backdrop-blur rounded-2xl p-4 shadow-md border border-slate-200/60"><div class="flex items-start gap-3"><div class="avatar-wali '+av+'">'+init+'</div><div class="flex-1 min-w-0"><div class="flex flex-wrap justify-between items-start gap-1"><div><h4 class="font-bold text-sm text-slate-800">'+p.namaWali+'</h4><div class="flex items-center gap-2 text-sm text-slate-500"><span><i class="fa-solid fa-user-graduate mr-1"></i> '+p.namaSantri+'</span><span class="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-xs font-semibold">'+(p.jilid||'-')+'</span></div></div><div class="flex items-center gap-1.5"><span class="text-xs text-slate-400">'+(p.waktu||'-')+'</span><span class="text-xs font-semibold '+(isRead?'text-emerald-600 bg-emerald-100':'text-amber-600 bg-amber-100')+' px-2 py-0.5 rounded-full">'+(isRead?'✅ Dibalas':'⏳ Belum')+'</span></div></div><p class="text-sm text-slate-700 mt-1.5 bg-slate-50 p-2.5 rounded-xl border">'+p.pesan+'</p>'+(p.balasan?'<div class="balasan-box"><div class="flex items-center gap-2 mb-1"><i class="fa-solid fa-reply text-emerald-600 text-sm"></i><span class="text-sm font-semibold text-emerald-700">Balasan</span></div><p class="text-sm text-slate-700">'+p.balasan+'</p></div>':'')+'<div class="flex gap-1.5 mt-2"><button onclick="bukaModalBalas('+i+')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded-xl text-sm font-semibold shadow btn-biasa"><i class="fa-solid fa-reply"></i> '+(p.balasan?'Edit Balasan':'Balas')+'</button><button onclick="hapusPesanWali('+i+')" class="bg-rose-100 hover:bg-rose-200 text-rose-600 px-3 py-1 rounded-xl text-sm font-semibold btn-biasa"><i class="fa-solid fa-trash-can"></i> Hapus</button></div></div></div></div>'}container.innerHTML=html}catch(e){}}
 
