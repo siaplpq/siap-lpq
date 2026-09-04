@@ -23,8 +23,15 @@ var ADMIN_SUPABASE_ANON_KEY = 'sb_publishable_pwnbJfrRWyhcjJkBkj_pyA__9IUZDuz';
 // ============================================================
 async function loadTenantConfig(tenantKey) {
     try {
+        tenantKey = String(tenantKey || '').trim().toUpperCase();
+        if (!/^LPQ\d{4}$/.test(tenantKey)) {
+            console.error('Tenant tidak valid:', tenantKey);
+            return null;
+        }
         var mainClient = supabase.createClient(ADMIN_SUPABASE_URL, ADMIN_SUPABASE_ANON_KEY);
-        var { data, error } = await mainClient.rpc('get_tenant_config', { p_tenant_key: tenantKey });
+        var rpcPromise = mainClient.rpc('get_tenant_config', { p_tenant_key: tenantKey });
+        var rpcResult = await Promise.race([rpcPromise, new Promise(function(_, reject){setTimeout(function(){reject(new Error('Tenant timeout'));},7000);})]);
+        var data = rpcResult.data, error = rpcResult.error;
         if (error) {
             console.error('❌ Gagal mengambil konfigurasi tenant:', error);
             return { success:false, error_code:'RPC_ERROR', error_message:error.message || 'Gagal menghubungi konfigurasi tenant.' };
@@ -33,6 +40,8 @@ async function loadTenantConfig(tenantKey) {
             console.warn('⚠️ Tenant tidak ditemukan:', tenantKey);
             return null;
         }
+        if (!data || String(data.tenant_key || tenantKey).toUpperCase() !== tenantKey) { return null; }
+        data.tenant_key = String(data.tenant_key || tenantKey).toUpperCase();
         return data;
     } catch (e) {
         console.error('Error load tenant:', e);
@@ -51,17 +60,20 @@ async function initTenantFromURL() {
         tenantKey = window.location.hash.replace('#', '');
     }
 
-    // Kompatibilitas deployment lama: bila GitHub Pages dibuka pada root
-    // tanpa ?tenant=... atau #tenant, gunakan tenant yang terakhir tersimpan.
+    tenantKey = String(tenantKey || '').trim().toUpperCase();
+    // Hanya jika URL/hash tidak memberi tenant, gunakan tenant terakhir tersimpan.
     // Jika belum ada, gunakan tenant utama LPQ0001 dari Master Admin.
     if (!tenantKey) {
         try { tenantKey = localStorage.getItem('siaplpq_tenant_key') || ''; } catch(e) {}
     }
+    if (tenantKey && !/^LPQ\d{4}$/.test(tenantKey)) return false;
     if (!tenantKey) {
         tenantKey = 'LPQ0001';
         console.warn('⚠️ Tenant URL tidak ditemukan; menggunakan tenant utama:', tenantKey);
     }
     
+    tenantKey = String(tenantKey || '').trim().toUpperCase();
+    if (!/^LPQ\d{4}$/.test(tenantKey)) return false;
     var config = await loadTenantConfig(tenantKey);
     
     if (config) {
@@ -250,34 +262,17 @@ header .bg-gradient-to-r{background:linear-gradient(90deg,#f6d365,#f1c453)!impor
 #dash-header-container .wali-stats-container .counter-value{color:#f6d365!important}
 @media(max-width:640px){#dash-stats-container{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:.35rem!important}#dash-stats-container .dash-counter-card-v2{padding:.45rem!important;gap:.4rem!important}#dash-stats-container .icon-wrapper{font-size:.85rem!important;width:1.65rem!important;min-width:1.65rem!important;height:1.65rem!important}#dash-stats-container .counter-label{font-size:8px!important}#dash-stats-container .counter-value{font-size:12px!important}}
 
-/* ============================================================
-   ABSENSI REV_12
-   ============================================================ */
-.abs-card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:14px;box-shadow:0 6px 20px rgba(15,23,42,.05)}
-.abs-label{display:block;font-size:11px;font-weight:700;color:#475569;margin:0 0 5px}
-.abs-input{border:1px solid #cbd5e1;border-radius:12px;background:#fff;padding:9px 11px;font-size:13px;outline:none;min-height:40px}
-.abs-input:focus{border-color:#d4a72c;box-shadow:0 0 0 3px rgba(212,167,44,.12)}
-.abs-btn,.abs-tab{border:1px solid #cbd5e1;border-radius:12px;padding:9px 12px;font-size:12px;font-weight:800;white-space:nowrap;background:#fff;color:#334155}
-.abs-btn:hover,.abs-tab:hover{background:#f8fafc}
-.abs-btn-gold{background:#0f766e;color:#fff;border-color:#0f766e}
-.abs-tab.active{background:#0f766e;color:#fff;border-color:#0f766e}
-.abs-counter{border:1px solid #e2e8f0;border-radius:16px;padding:11px 12px;background:linear-gradient(135deg,#064e3b,#0f766e)}
-.abs-counter-label{font-size:11px;color:#f7d774;font-weight:800}
-.abs-counter-value{font-size:24px;line-height:1.1;color:#f7d774;font-weight:900;margin-top:3px}
-.abs-row{display:flex;align-items:center;gap:10px;border:1px solid #e2e8f0;border-radius:14px;padding:10px;background:#fff}
-.abs-name{font-size:13px;font-weight:800;color:#0f172a}
-.abs-meta{font-size:10px;color:#64748b;margin-top:2px}
-.abs-status{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-left:auto}
-.abs-status button{border:1px solid #cbd5e1;border-radius:9px;padding:6px 7px;font-size:10px;font-weight:800;background:#fff;color:#475569}
-.abs-status button.active{background:#d4a72c;color:#fff;border-color:#b88d19}
-.abs-status button:disabled{opacity:.55;cursor:not-allowed}
-@media(max-width:640px){
-  .abs-card{padding:12px;border-radius:16px}
-  .abs-row{align-items:flex-start;flex-wrap:wrap}
-  .abs-status{width:100%;margin-left:0}
-  .abs-status button{min-height:36px}
-  .abs-btn{min-height:40px}
-}
+/* REV_12 STANDARD ANDROID APP LAYOUT */
+.main-content-wrapper{padding-left:16px!important;padding-right:16px!important}
+@media(max-width:480px){.main-content-wrapper{padding-left:14px!important;padding-right:14px!important}.card-3d{padding:14px 15px!important}.filter-grid{gap:10px!important}.table-wrapper table th,.table-wrapper table td{padding:8px 11px!important}.jilid-grid{gap:10px!important}}
+.chat-app{height:min(760px,calc(100dvh - 150px))!important;min-height:520px!important;border-radius:18px!important;border:1px solid rgba(148,163,184,.25)!important;grid-template-columns:minmax(220px,30%) 1fr!important;display:grid!important;overflow:hidden!important}
+.chat-sidebar{max-height:none!important;min-height:0!important;border-right:1px solid rgba(148,163,184,.22)!important}
+.chat-contact-list{display:block!important;overflow-y:auto!important;overflow-x:hidden!important;padding:8px!important}
+.chat-contact{min-width:0!important}.chat-board{padding:16px!important}.chat-composer{padding:10px 12px!important}
+@media(max-width:768px){.chat-app{height:calc(100dvh - 190px)!important;min-height:480px!important;grid-template-columns:1fr!important}.chat-sidebar{max-height:112px!important;border-right:0!important;border-bottom:1px solid rgba(148,163,184,.22)!important}.chat-contact-list{display:flex!important;overflow-x:auto!important;overflow-y:hidden!important;padding:6px 8px!important}.chat-contact{min-width:190px!important}.chat-board{padding:14px!important}.chat-composer{padding:9px 10px!important}}
+
+/* ABSENSI REV12 CSS */
+.abs-page{padding:14px 10px 28px}.abs-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}.abs-head h2{color:#064e3b;font-weight:900;margin:0}.abs-head h2 i{color:#d4a72c}.abs-head p{font-size:12px;color:#64748b;margin:3px 0}.abs-tabs{display:flex;gap:6px}.abs-tabs button,.abs-toolbar button{border:1px solid #cbd5e1;border-radius:12px;padding:9px 12px;background:#fff;font-weight:800;font-size:12px;min-height:40px}.abs-tabs button.active,.abs-toolbar button.gold{background:#0f766e;color:#fff;border-color:#0f766e}.abs-counters{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 14px}.abs-counters>div{background:linear-gradient(135deg,#064e3b,#0f766e);border-radius:16px;padding:12px 13px;box-shadow:0 6px 16px rgba(15,118,110,.12)}.abs-counters span{display:block;color:#f7d774;font-size:11px;font-weight:800}.abs-counters b{display:block;color:#f7d774;font-size:26px;line-height:1.1;margin-top:3px}.abs-card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 6px 20px rgba(15,23,42,.05)}.abs-toolbar{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:10px}.abs-toolbar label{font-size:11px;font-weight:800;color:#475569}.abs-toolbar input{display:block;margin-top:4px;border:1px solid #cbd5e1;border-radius:11px;padding:9px 10px;min-height:40px;font-size:12px;background:#fff}.abs-toolbar .grow{flex:1;min-width:180px}.abs-lock{padding:9px 11px;border-radius:11px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:11px;margin-bottom:9px}.abs-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #eef2f7}.abs-row:last-child{border-bottom:0}.abs-name{font-weight:800;font-size:13px;color:#0f172a}.abs-meta{font-size:10px;color:#64748b}.abs-status{display:grid;grid-template-columns:repeat(4,auto);gap:5px}.abs-status button{border:1px solid #cbd5e1;border-radius:9px;background:#fff;padding:7px 8px;font-size:10px;font-weight:800}.abs-status button.active{background:#d4a72c;color:#fff;border-color:#b88d19}.abs-status button:disabled{opacity:.55}.hidden{display:none!important}@media(max-width:640px){.abs-head{align-items:flex-start;flex-direction:column}.abs-counters{gap:7px}.abs-counters>div{padding:10px}.abs-counters b{font-size:22px}.abs-card{padding:12px}.abs-toolbar{display:grid;grid-template-columns:1fr 1fr}.abs-toolbar .grow{min-width:0}.abs-toolbar button{width:100%}.abs-row{grid-template-columns:1fr}.abs-status{grid-template-columns:repeat(4,1fr)}.abs-status button{width:100%;padding:8px 4px}}
 
 </style>
 
@@ -365,56 +360,6 @@ main#main-content-area > header #header-tpq-label,
 @keyframes chat-watermark-sway{0%,100%{transform:translate3d(0,0,0) rotate(-2deg)}25%{transform:translate3d(5px,-4px,0) rotate(2deg)}50%{transform:translate3d(0,-7px,0) rotate(-1deg)}75%{transform:translate3d(-5px,-4px,0) rotate(2deg)}}
 @media(max-width:768px){.main-content-wrapper{padding:0!important}.chat-page-shell{height:100%;gap:0}.chat-page-head{display:none}.chat-app{height:calc(100dvh - 58px)!important;min-height:0!important;border-radius:0!important;border-left:0!important;border-right:0!important;grid-template-columns:1fr!important;display:flex!important;flex-direction:column!important;overflow:hidden}.chat-sidebar{flex:0 0 auto;max-height:118px!important;min-height:0}.chat-sidebar-header{padding:8px 10px}.chat-contact-caption{display:none}.chat-contact-list{flex:1;display:flex;overflow-x:auto;overflow-y:hidden;padding:5px 8px;gap:6px}.chat-contact{min-width:190px;padding:8px}.chat-main{flex:1 1 auto;min-height:0}.chat-topbar{min-height:58px;padding:8px 10px}.chat-topbar-title{font-size:13px}.chat-topbar-sub{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48vw}.chat-delete{padding:7px 9px;font-size:10px}.chat-delete-label{display:none}.chat-board{padding:12px 9px}.chat-bubble{max-width:88%;font-size:13px;padding:8px 10px 6px}.chat-composer{padding:7px 8px;gap:6px;min-height:60px;padding-bottom:max(7px,env(safe-area-inset-bottom))}.chat-composer textarea{min-height:44px;max-height:110px;font-size:14px;padding:10px 12px}.chat-send{width:44px;height:44px;min-width:44px}.chat-search{min-height:40px!important;padding:8px 11px!important;font-size:13px!important}.chat-avatar{width:36px;height:36px;min-width:36px;font-size:13px}}
 @media(max-width:390px){.chat-contact{min-width:165px}.chat-contact-name{font-size:12px}.chat-contact-meta{font-size:9px}.chat-board{padding-left:7px;padding-right:7px}.chat-bubble{max-width:92%}}
-</style>
-
-<style id="rev12-final-spacing-chat-fix">
-/* REV_12 FINAL UX: breathing room on phones */
-@media (max-width: 768px){
-  .content-section, .page-section, .section-card, .card, .dashboard-card, .module-card { margin-left: 8px !important; margin-right: 8px !important; }
-  main, #main-content, .main-content, .content-area { padding-left: 8px !important; padding-right: 8px !important; }
-  .grid { row-gap: 12px; }
-  .counter, [class*="counter"], [id*="counter"], .stat-card, [id^="stat-"] { box-sizing:border-box; }
-}
-/* Keep counters comfortably inside their cards and prevent clipping */
-.counter, [class*="counter"], [id*="counter"], .stat-card, [id^="stat-"] {
-  overflow: visible !important;
-  min-width: 0;
-  word-break: normal;
-  overflow-wrap: anywhere;
-}
-.counter *, [class*="counter"] *, [id*="counter"] *, .stat-card *, [id^="stat-"] * {
-  min-width:0;
-}
-/* Gold/amber typography for dashboard counters and header accents */
-.counter, [class*="counter"], [id*="counter"],
-.counter .text-3xl, .counter .text-4xl, .counter .text-5xl,
-.stat-card .text-3xl, .stat-card .text-4xl, .stat-card .text-5xl,
-[id^="stat-"] .text-3xl, [id^="stat-"] .text-4xl, [id^="stat-"] .text-5xl {
-  color:#f6c453 !important;
-}
-header h1, header h2, header .font-bold, header .font-extrabold, .app-header h1, .app-header h2 {
-  color:#f6c453 !important;
-}
-/* Chat contact results: real vertical result list/dropdown */
-#chat-guru-search-wrap { position:relative; z-index:30; }
-#chat-contact-list.chat-results-dropdown {
-  display:block !important; overflow-y:auto !important; overflow-x:hidden !important;
-  max-height:calc(100dvh - 190px) !important; padding:8px !important;
-  background:rgba(6,78,59,.98); border-radius:12px;
-}
-#chat-contact-list.chat-results-dropdown .chat-contact {
-  min-width:0 !important; width:100%; margin:0 0 6px;
-  display:flex; align-items:center; gap:9px;
-  border:1px solid rgba(246,196,83,.22);
-  background:rgba(255,255,255,.08);
-}
-#chat-contact-list.chat-results-dropdown .chat-contact:last-child { margin-bottom:0; }
-#chat-contact-list.chat-results-dropdown .chat-contact:hover,
-#chat-contact-list.chat-results-dropdown .chat-contact.active { background:rgba(246,196,83,.16); border-color:rgba(246,196,83,.55); }
-@media(max-width:768px){
-  #chat-contact-list.chat-results-dropdown { max-height:170px !important; }
-  #chat-guru-search-wrap { padding:0 2px; }
-}
 </style>
 </head>
 <body id="app-body" class="bg-gradient-to-br from-slate-100 via-emerald-50/40 to-slate-100 font-sans text-slate-800 min-h-screen">
@@ -665,76 +610,21 @@ header h1, header h2, header .font-bold, header .font-extrabold, .app-header h1,
 <!-- SECTION: CHAT WALI SANTRI / CHAT GURU (REV_12)              -->
 <!-- ============================================================ -->
 
-<!-- ============================================================
-     SECTION: ABSENSI REV_12
-     ============================================================ -->
-<section id="absensi" class="content-section hidden">
-  <div class="px-3 sm:px-5 lg:px-6 py-4">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-      <div>
-        <h2 class="text-xl sm:text-2xl font-extrabold text-emerald-900">
-          <i class="fa-solid fa-clipboard-user text-amber-500"></i> Absensi
-        </h2>
-        <p class="text-xs sm:text-sm text-slate-500">Kehadiran santri dan guru</p>
-      </div>
-      <div class="flex gap-2">
-        <button class="abs-tab active" id="abs-tab-santri" onclick="AbsensiTab('santri')">
-          <i class="fa-solid fa-user-graduate"></i> Santri
-        </button>
-        <button class="abs-tab" id="abs-tab-guru" onclick="AbsensiTab('guru')">
-          <i class="fa-solid fa-chalkboard-user"></i> Guru
-        </button>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-      <div class="abs-counter"><div class="abs-counter-label">Hadir</div><div id="abs-c-hadir" class="abs-counter-value">0</div></div>
-      <div class="abs-counter"><div class="abs-counter-label">Izin</div><div id="abs-c-izin" class="abs-counter-value">0</div></div>
-      <div class="abs-counter"><div class="abs-counter-label">Sakit</div><div id="abs-c-sakit" class="abs-counter-value">0</div></div>
-      <div class="abs-counter"><div class="abs-counter-label">Alpa</div><div id="abs-c-alpa" class="abs-counter-value">0</div></div>
-    </div>
-
+<!-- ============================================================ -->
+<!-- SECTION: ABSENSI                                            -->
+<!-- ============================================================ -->
+<section id="absensi" class="content-section hidden space-y-5">
+  <div class="abs-page">
+    <div class="abs-head"><div><h2><i class="fa-solid fa-clipboard-user"></i> Absensi</h2><p>Kehadiran santri dan guru</p></div><div class="abs-tabs"><button id="abs-tab-santri" class="active" onclick="setAbsTab('santri')">Santri</button><button id="abs-tab-guru" onclick="setAbsTab('guru')">Guru</button></div></div>
+    <div class="abs-counters"><div><span>Hadir</span><b id="abs-hadir">0</b></div><div><span>Izin</span><b id="abs-izin">0</b></div><div><span>Sakit</span><b id="abs-sakit">0</b></div><div><span>Alpa</span><b id="abs-alpa">0</b></div></div>
     <div class="abs-card">
-      <div class="flex flex-col lg:flex-row lg:items-end gap-3 mb-4">
-        <div>
-          <label class="abs-label">Tanggal</label>
-          <input id="abs-tanggal" type="date" class="abs-input" onchange="RenderAbsensi()">
-        </div>
-        <div class="flex-1">
-          <label class="abs-label">Cari</label>
-          <input id="abs-search" type="search" class="abs-input w-full" placeholder="Nama / NIS / guru..." oninput="RenderAbsensi()">
-        </div>
-        <div class="flex gap-2">
-          <button class="abs-btn abs-btn-gold" onclick="AbsensiSemuaHadir()"><i class="fa-solid fa-check-double"></i> Semua Hadir</button>
-          <button class="abs-btn" onclick="SimpanAbsensi()"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
-        </div>
-      </div>
-
-      <div id="abs-lock-note" class="hidden mb-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 text-xs">
-        <i class="fa-solid fa-lock"></i> Absensi untuk tanggal ini sudah dilakukan dan dikunci.
-      </div>
-
-      <div id="abs-list" class="space-y-2"></div>
+      <div class="abs-toolbar"><label>Tanggal<input id="abs-date" type="date"></label><label class="grow">Cari<input id="abs-q" type="search" placeholder="Nama / NIS / wali..." oninput="renderAbsensi()"></label><button onclick="setAllPresent()">Semua Hadir</button><button class="gold" onclick="saveAbsensi()">Simpan</button></div>
+      <div id="abs-lock" class="abs-lock hidden"><i class="fa-solid fa-lock"></i> Absensi tanggal ini sudah dilakukan dan terkunci.</div>
+      <div id="abs-list"></div>
     </div>
-
-    <div class="abs-card mt-4">
-      <div class="flex flex-col sm:flex-row sm:items-end gap-3 mb-4">
-        <div>
-          <label class="abs-label">Dari</label>
-          <input id="abs-periode-awal" type="date" class="abs-input">
-        </div>
-        <div>
-          <label class="abs-label">Sampai</label>
-          <input id="abs-periode-akhir" type="date" class="abs-input">
-        </div>
-        <button class="abs-btn" onclick="AnalisisAbsensi()"><i class="fa-solid fa-chart-column"></i> Analisis</button>
-        <button class="abs-btn" onclick="CetakAbsensiPDF()"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-      </div>
-      <div id="abs-analysis" class="text-sm text-slate-600">Pilih periode untuk melihat analisis.</div>
-    </div>
+    <div class="abs-card"><div class="abs-toolbar"><label>Dari<input id="abs-from" type="date"></label><label>Sampai<input id="abs-to" type="date"></label><button onclick="analyzeAbsensi()">Analisis</button><button onclick="printAbsensi()">PDF</button></div><div id="abs-analysis"></div></div>
   </div>
 </section>
-
 <section id="pesan_wali" class="content-section hidden">
   <div class="chat-page-shell">
     <div class="chat-page-head">
@@ -1003,7 +893,7 @@ async function loadAllData() {
         updateAllLogos();
         updateMetodeLabels();
         
-        var tables = ['santri', 'prestasi', 'kenaikan', 'bayar', 'mutasi', 'ustadz', 'users', 'informasi', 'pesanWali', 'kurikulum', 'kegiatanLuar', 'chatWali'];
+        var tables = ['santri', 'prestasi', 'kenaikan', 'bayar', 'mutasi', 'ustadz', 'users', 'informasi', 'pesanWali', 'kurikulum', 'kegiatanLuar', 'chatWali', 'absensi_santri', 'absensi_guru', 'absensi_guru_otorisasi'];
         for (var i = 0; i < tables.length; i++) {
             var t = tables[i];
             updateSplash(20 + (i / tables.length) * 70, 'Memuat ' + t + '...');
@@ -1061,7 +951,9 @@ async function loadAllData() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    var startupGuard = setTimeout(function(){ console.warn('Startup guard'); forceShowLogin(); }, 12000);
     initTenantFromURL().then(function(tenantReady) {
+        clearTimeout(startupGuard);
         if (!tenantReady) {
             document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;padding:24px;font-family:system-ui,sans-serif;"><div style="max-width:520px;background:white;border:1px solid #d1fae5;border-radius:20px;padding:30px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08);"><div style="font-size:42px;margin-bottom:12px;">⚠️</div><h2 style="color:#065f46;margin:0 0 10px;font-size:22px;">Lembaga Tidak Ditemukan</h2><p style="color:#64748b;margin:0 0 18px;line-height:1.7;">Silahkan hubungi nomor di bawah ini untuk mendapatkan bantuan.</p><a href="https://wa.me/6283198740074" target="_blank" rel="noopener" style="display:inline-block;background:#059669;color:white;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:12px;box-shadow:0 5px 14px rgba(5,150,105,.25);">083198740074</a></div></div>';
             return;
@@ -1396,6 +1288,7 @@ function setupSidebarByRole() {
             btnContainer.style.display = (currentUser.role === 'Guru') ? 'none' : 'flex';
         }
         updateSidebarCopyright();
+        addAbsensiNavRev12();
         if (nav) nav.scrollTop = 0;
     } catch(e) {}
 }
@@ -1403,17 +1296,13 @@ function setupSidebarByRole() {
 function getSidebarItems(role) {
     var items = '';
     if (role === 'Kepala') {
-        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'analisis\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-line w-5 text-amber-400"></i> Analisis Santri</a><a href="#" onclick="showSection(\'profil\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-gear w-5 text-amber-400"></i> Pengaturan Profil</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i>
-        <button id="nav-absensi" onclick="showSection('absensi')" class="sidebar-item flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl">
-          <i class="fa-solid fa-clipboard-user w-5"></i><span>Absensi</span>
-        </button>
-         Kurikulum</a><a href="#" onclick="showSection(\'ustadz\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chalkboard-user w-5 text-amber-400"></i> Data Guru</a><a href="#" onclick="showSection(\'santri\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-users w-5 text-amber-400"></i> Data Santri</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'kenaikan\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-award w-5 text-amber-400"></i> Kenaikan Jilid</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'mutasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-file-invoice-dollar w-5 text-amber-400"></i> Kas Keluar Masuk</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Chat Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'user\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-user-gear w-5 text-amber-400"></i> Management User</a><a href="#" onclick="showSection(\'backup\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-database w-5 text-amber-400"></i> Backup & Restore</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="hapusFotoManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-regular fa-trash-can w-5 text-amber-200"></i> Hapus Foto > 1 Bulan</a><a href="#" onclick="hapusAllDataGlobal()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa mt-2"><i class="fa-solid fa-triangle-exclamation w-5 text-amber-200"></i> Hapus All Data</a><a href="#" onclick="hapusDataLamaManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-solid fa-clock-rotate-left w-5 text-amber-200"></i> Hapus Manual</a><a href="#" onclick="showSection(\'jadwal\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-100 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-calendar-days w-5 text-emerald-300"></i> Jadwal Pelajaran</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
+        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'analisis\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-line w-5 text-amber-400"></i> Analisis Santri</a><a href="#" onclick="showSection(\'profil\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-gear w-5 text-amber-400"></i> Pengaturan Profil</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'ustadz\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chalkboard-user w-5 text-amber-400"></i> Data Guru</a><a href="#" onclick="showSection(\'santri\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-users w-5 text-amber-400"></i> Data Santri</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'kenaikan\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-award w-5 text-amber-400"></i> Kenaikan Jilid</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'mutasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-file-invoice-dollar w-5 text-amber-400"></i> Kas Keluar Masuk</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Chat Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'user\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-user-gear w-5 text-amber-400"></i> Management User</a><a href="#" onclick="showSection(\'backup\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-database w-5 text-amber-400"></i> Backup & Restore</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="hapusFotoManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-regular fa-trash-can w-5 text-amber-200"></i> Hapus Foto > 1 Bulan</a><a href="#" onclick="hapusAllDataGlobal()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa mt-2"><i class="fa-solid fa-triangle-exclamation w-5 text-amber-200"></i> Hapus All Data</a><a href="#" onclick="hapusDataLamaManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-solid fa-clock-rotate-left w-5 text-amber-200"></i> Hapus Manual</a><a href="#" onclick="showSection(\'jadwal\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-100 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-calendar-days w-5 text-emerald-300"></i> Jadwal Pelajaran</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
     } else if (role === 'Bendahara') {
         items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'mutasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-file-invoice-dollar w-5 text-amber-400"></i> Kas Keluar Masuk</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Chat Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="hapusFotoManual()" class="flex items-center gap-3 p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition transform hover:translate-x-1 shadow-md btn-biasa"><i class="fa-regular fa-trash-can w-5 text-amber-200"></i> Hapus Foto > 1 Bulan</a><a href="#" onclick="showSection(\'jadwal\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-100 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-calendar-days w-5 text-emerald-300"></i> Jadwal Pelajaran</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
     } else if (role === 'Guru') {
         items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'analisis\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-line w-5 text-amber-400"></i> Analisis Santri</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'ustadz\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chalkboard-user w-5 text-amber-400"></i> Data Guru</a><a href="#" onclick="showSection(\'santri\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-users w-5 text-amber-400"></i> Data Santri</a><a href="#" onclick="showSection(\'prestasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Buku Prestasi</a><a href="#" onclick="showSection(\'pembayaran\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-wallet w-5 text-amber-400"></i> Pembayaran & Kas</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Chat Wali Santri</a><a href="#" onclick="showSection(\'informasi\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-bullhorn w-5 text-amber-400"></i> Papan Informasi</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="showSection(\'jadwal\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-100 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-calendar-days w-5 text-emerald-300"></i> Jadwal Pelajaran</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
     } else if (role === 'Wali Santri') {
-        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Chat Guru</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="openModal(\'modalEditWali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-user-pen w-5 text-amber-400"></i> Profil &amp; Pengaturan</a><a href="#" onclick="showSection(\'jadwal\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-100 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-calendar-days w-5 text-emerald-300"></i> Jadwal Pelajaran</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
+        items = '<a href="#" onclick="showSection(\'dashboard\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500 text-slate-950 font-bold shadow-md transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-chart-pie w-5 text-slate-950"></i> Dashboard</a><a href="#" onclick="showSection(\'kurikulum\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-book-open w-5 text-amber-400"></i> Kurikulum</a><a href="#" onclick="showSection(\'pesan_wali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-comments w-5 text-amber-400"></i> Chat Wali</a><a href="#" onclick="showSection(\'utility\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-hand-holding-heart w-5 text-amber-400"></i> Sambutan Founder</a><a href="#" onclick="openModal(\'modalEditWali\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-user-pen w-5 text-amber-400"></i> Profil &amp; Pengaturan</a><a href="#" onclick="showSection(\'jadwal\')" class="nav-link flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-100 font-semibold transition transform hover:translate-x-1 btn-biasa"><i class="fa-solid fa-calendar-days w-5 text-emerald-300"></i> Jadwal Pelajaran</a><a href="#" onclick="konfirmasiKeluar()" class="flex items-center gap-3 p-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-200 hover:text-white transition mt-6 border border-rose-800/40 shadow btn-biasa"><i class="fa-solid fa-right-from-bracket w-5 text-rose-400"></i> Keluar Aplikasi</a>';
     }
     return items;
 }
@@ -1496,57 +1385,53 @@ async function deleteInfo(id){if(!confirm('⚠️ Hapus pengumuman?'))return;try
 var chatState={selectedKey:'',selectedNis:'',selectedSantri:null,selectedGuru:null,poll:null};
 function chatEsc(v){return esc(String(v==null?'':v))}
 function chatInitial(name){var n=String(name||'?').trim();return n?n.charAt(0).toUpperCase():'?'}
-function chatTeacherForSantri(s){if(!s)return null;var name=String(s.guru||'').trim();if(!name)return null;return (db.ustadz||[]).find(function(u){return String(u.nama||'').trim().toLowerCase()===name.toLowerCase()})||null}
+function chatTeacherForSantri(s){if(!s)return null;var name=String(s.guru||s.pengampu||s.guru_nama||'').trim().toLowerCase();var gid=String(s.guru_id||s.pengampu_id||'').trim();var arr=db.ustadz||[];if(gid){var byId=arr.find(function(u){return String(u.id||u.nip||u.nik||'')===gid});if(byId)return byId}if(name){var byName=arr.find(function(u){return String(u.nama||'').trim().toLowerCase()===name});if(byName)return byName}return null}
 function chatUserForGuru(g){if(!g)return null;return (db.users||[]).find(function(u){return u.role==='Guru'&&String(u.nama||'').trim().toLowerCase()===String(g.nama||'').trim().toLowerCase()})||null}
 function chatConversationKey(nis,guruId,guruName){return String(nis||'')+'::'+String(guruId||guruName||'')}
-function chatCurrentSantri(){if(currentUser&&currentUser.role==='Wali Santri')return (db.santri||[]).find(function(s){return String(s.nis)===String(currentUser.ref)})||null;return chatState.selectedSantri}
+function chatCurrentSantri(){if(currentUser&&currentUser.role==='Wali Santri'){var ref=String(currentUser.ref||currentUser.nis||currentUser.santri_id||currentUser.id||'');return (db.santri||[]).find(function(s){return String(s.nis||'')===ref||String(s.id||'')===ref||String(s.user_id||'')===ref})||null}return chatState.selectedSantri}
 function chatCurrentGuru(){return chatTeacherForSantri(chatCurrentSantri())}
 function initChatWali(){try{var title=getEl('chat-page-title'),sub=getEl('chat-page-subtitle'),sw=getEl('chat-guru-search-wrap');if(currentUser&&currentUser.role==='Wali Santri'){if(title)title.innerHTML='<i class="fa-solid fa-comments text-emerald-600"></i> Chat Guru';if(sub)sub.innerText='Komunikasi dua arah Wali Santri ↔ Guru Pengampu';if(sw)sw.classList.add('hidden');var s=chatCurrentSantri(),g=chatTeacherForSantri(s);if(s){chatState.selectedSantri=s;chatState.selectedNis=String(s.nis);chatState.selectedGuru=g;chatState.selectedKey=chatConversationKey(s.nis,g&&g.id,g&&g.nama)}}else{if(title)title.innerHTML='<i class="fa-solid fa-comments text-emerald-600"></i> Chat Wali Santri';if(sub)sub.innerText='Komunikasi dua arah Guru ↔ Wali Santri';if(sw)sw.classList.remove('hidden');}renderChatContacts();renderCurrentChat();focusChatInput();if(chatState.poll)clearInterval(chatState.poll);chatState.poll=setInterval(function(){var sec=getEl('pesan_wali');if(sec&&!sec.classList.contains('hidden')&&chatState.selectedKey)refreshChatWali(false)},5000)}catch(e){console.warn('initChatWali',e)}}
-function renderChatContacts(){try{
-  var el=getEl('chat-contact-list');
-  if(!el)return;
-  if(currentUser&&currentUser.role==='Wali Santri'){
-    el.classList.remove('chat-results-dropdown');
-    var s=chatCurrentSantri(),g=chatTeacherForSantri(s);
-    if(!s){el.innerHTML='<div class="p-4 text-center text-white text-xs">Data santri tidak ditemukan.</div>';return}
-    chatState.selectedSantri=s;chatState.selectedGuru=g;chatState.selectedNis=String(s.nis);chatState.selectedKey=chatConversationKey(s.nis,g&&g.id,g&&g.nama);
-    el.innerHTML='<div class="chat-contact active"><div class="chat-avatar">'+chatInitial(g?g.nama:'G')+'</div><div class="min-w-0 flex-1"><div class="chat-contact-name">'+chatEsc(g?g.nama:'Guru Pengampu')+'</div><div class="chat-contact-meta">'+chatEsc(s.nama)+' · '+chatEsc(s.jilid||'-')+'</div></div></div>';
-    return;
-  }
-  el.classList.add('chat-results-dropdown');
-  var input=getEl('chat-guru-search'),q=input?String(input.value||'').trim().toLowerCase():'';
-  var arr=(db.santri||[]).slice();
-  /* Guru must see santri list even before typing; typing filters the list. */
-  if(q)arr=arr.filter(function(s){
-    return String(s.nama||'').toLowerCase().includes(q)||
-      String(s.nis||'').toLowerCase().includes(q)||
-      String(s.ortu||'').toLowerCase().includes(q)||
-      String(s.guru||'').toLowerCase().includes(q);
-  });
-  arr.sort(function(a,b){return String(a.nama||'').localeCompare(String(b.nama||''));});
-  if(!arr.length){el.innerHTML='<div class="p-4 text-center text-emerald-100 text-xs">Santri/wali tidak ditemukan.</div>';return;}
-  var h='';
-  for(var i=0;i<arr.length;i++){
-    var s=arr[i],g=chatTeacherForSantri(s),key=chatConversationKey(s.nis,g&&g.id,g&&g.nama),active=key===chatState.selectedKey?' active':'',count=(db.chatWali||[]).filter(function(m){return m.conversation_key===key}).length;
-    h+='<div class="chat-contact'+active+'" role="button" tabindex="0" onclick="selectChatContact('+JSON.stringify(String(s.nis))+')" onkeydown="if(event.key===\'Enter\')selectChatContact('+JSON.stringify(String(s.nis))+')">'+
-      '<div class="chat-avatar">'+chatInitial(s.nama)+'</div>'+ 
-      '<div class="min-w-0 flex-1"><div class="chat-contact-name">'+chatEsc(s.nama||'Santri')+'</div>'+ 
-      '<div class="chat-contact-meta">'+chatEsc(s.ortu||'Wali belum diisi')+' · '+chatEsc(s.jilid||'-')+(g?' · '+chatEsc(g.nama):' · Guru belum ditentukan')+'</div></div>'+ 
-      (count?'<span class="text-[9px] font-bold" style="color:#f6c453">'+count+'</span>':'')+'</div>';
-  }
-  el.innerHTML=h;
-}catch(e){console.warn('renderChatContacts',e)}}
+function renderChatContacts(){try{var el=getEl('chat-contact-list');if(!el)return;if(currentUser&&currentUser.role==='Wali Santri'){var s=chatCurrentSantri(),g=chatTeacherForSantri(s);if(!s){el.innerHTML='<div class="p-4 text-center text-white text-xs">Data santri tidak ditemukan.</div>';return}chatState.selectedSantri=s;chatState.selectedGuru=g;chatState.selectedNis=String(s.nis);chatState.selectedKey=chatConversationKey(s.nis,g&&g.id,g&&g.nama);el.innerHTML='<div class="chat-contact active"><div class="chat-avatar">'+chatInitial(g?g.nama:'G')+'</div><div class="min-w-0"><div class="chat-contact-name">'+chatEsc(g?g.nama:'Guru Pengampu')+'</div><div class="chat-contact-meta">'+chatEsc(s.nama)+' · '+chatEsc(s.jilid||'-')+'</div></div></div>';return}var q=(getEl('chat-guru-search')?getEl('chat-guru-search').value:'').trim().toLowerCase(),arr=(db.santri||[]).slice();if(q)arr=arr.filter(function(s){return String(s.nama||'').toLowerCase().includes(q)||String(s.nis||'').toLowerCase().includes(q)||String(s.ortu||'').toLowerCase().includes(q)||String(s.guru||'').toLowerCase().includes(q)});arr.sort(function(a,b){return String(a.nama||'').localeCompare(String(b.nama||''))});if(!arr.length){el.innerHTML='<div class="p-4 text-center text-emerald-100 text-xs">Wali/santri tidak ditemukan.</div>';return}var h='';for(var i=0;i<arr.length;i++){var s=arr[i],g=chatTeacherForSantri(s),key=chatConversationKey(s.nis,g&&g.id,g&&g.nama),active=key===chatState.selectedKey?' active':'',count=(db.chatWali||[]).filter(function(m){return m.conversation_key===key}).length;h+='<div class="chat-contact'+active+'" onclick="selectChatContact('+JSON.stringify(String(s.nis))+')"><div class="chat-avatar">'+chatInitial(s.nama)+'</div><div class="min-w-0 flex-1"><div class="chat-contact-name">'+chatEsc(s.ortu||('Wali '+s.nama))+'</div><div class="chat-contact-meta">'+chatEsc(s.nama)+' · '+chatEsc(s.jilid||'-')+(g?' · '+chatEsc(g.nama):'')+'</div></div><span class="text-[9px] text-amber-200 font-bold">'+(count||'')+'</span></div>'}el.innerHTML=h}catch(e){console.warn('renderChatContacts',e)}}
 function selectChatContact(nis){try{var s=(db.santri||[]).find(function(x){return String(x.nis)===String(nis)});if(!s)return;var g=chatTeacherForSantri(s);chatState.selectedSantri=s;chatState.selectedGuru=g;chatState.selectedNis=String(s.nis);chatState.selectedKey=chatConversationKey(s.nis,g&&g.id,g&&g.nama);renderChatContacts();renderCurrentChat();focusChatInput()}catch(e){console.warn('selectChatContact',e)}}
 function renderCurrentChat(){try{var board=getEl('chat-board'),nameEl=getEl('chat-selected-name'),metaEl=getEl('chat-selected-meta'),avatar=getEl('chat-selected-avatar'),input=getEl('chat-message-input');if(!board)return;var s=chatCurrentSantri(),g=chatCurrentGuru();if(!s){board.innerHTML='<div class="chat-watermark" aria-hidden="true"><img id="chat-watermark-logo" src="'+chatEsc(db.profil&&db.profil.logo?db.profil.logo:'https://api.iconify.design/fluent-emoji-flat:open-book.svg')+'" alt=""></div><div class="chat-empty"><div><i class="fa-solid fa-user-slash text-4xl text-slate-300 mb-3"></i><p class="font-bold">Data santri tidak ditemukan.</p></div></div>';if(input)input.disabled=true;return}chatState.selectedSantri=s;chatState.selectedGuru=g;chatState.selectedNis=String(s.nis);chatState.selectedKey=chatConversationKey(s.nis,g&&g.id,g&&g.nama);var other=currentUser&&currentUser.role==='Guru'?(s.ortu||('Wali '+s.nama)):(g?g.nama:'Guru Pengampu');if(nameEl)nameEl.innerText=other;if(metaEl)metaEl.innerText=s.nama+' · '+(s.jilid||'-')+' · '+(g?g.nama:'Guru belum ditentukan');if(avatar)avatar.innerText=chatInitial(other);var msgs=(db.chatWali||[]).filter(function(m){return m.conversation_key===chatState.selectedKey}).sort(function(a,b){return new Date(a.sent_at||a.created_at||0)-new Date(b.sent_at||b.created_at||0)});var logo=(db.profil&&db.profil.logo)||'https://api.iconify.design/fluent-emoji-flat:open-book.svg';var h='<div class="chat-watermark" aria-hidden="true"><img id="chat-watermark-logo" src="'+chatEsc(logo)+'" alt=""></div>';if(!msgs.length)h+='<div class="chat-empty"><div><i class="fa-solid fa-message text-4xl text-emerald-200 mb-3"></i><p class="font-bold text-slate-600">Belum ada percakapan</p><p class="text-xs mt-1">Mulai percakapan dengan '+chatEsc(other)+'.</p></div></div>';else{for(var i=0;i<msgs.length;i++){var m=msgs[i],mine=currentUser&&String(m.sender_id)===String(currentUser.id),dt=m.sent_at?new Date(m.sent_at):new Date();h+='<div class="chat-bubble-row '+(mine?'mine':'theirs')+'"><div class="chat-bubble '+(mine?'mine':'theirs')+'">'+chatEsc(m.message)+'<div class="chat-meta">'+dt.toLocaleDateString('id-ID',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+dt.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+'</div></div></div>'}}board.innerHTML=h;setTimeout(function(){board.scrollTop=board.scrollHeight},20);if(input){input.disabled=false;input.focus()}}catch(e){console.warn('renderCurrentChat',e)}}
 async function refreshChatWali(showMessage){try{if(!supabaseClient)return;var r=await supabaseClient.from('chatWali').select('*').order('sent_at',{ascending:true});if(!r.error&&r.data){db.chatWali=r.data;renderChatContacts();renderCurrentChat()}if(showMessage)showNotif('🔄 Chat diperbarui')}catch(e){console.warn('refreshChatWali',e)}}
 function focusChatInput(){setTimeout(function(){var i=getEl('chat-message-input');if(i&&!i.disabled){i.focus();i.selectionStart=i.selectionEnd=i.value.length}},120)}
-async function kirimPesanChat(e){e.preventDefault();try{if(!currentUser||!chatState.selectedKey){alert('❌ Pilih percakapan terlebih dahulu.');return}var s=chatCurrentSantri(),g=chatCurrentGuru();if(!s||!g){alert('❌ Guru pengampu belum ditentukan untuk santri ini.');return}var input=getEl('chat-message-input'),message=input?input.value.trim():'';if(!message)return;var gu=chatUserForGuru(g),wu=(db.users||[]).find(function(u){return u.role==='Wali Santri'&&String(u.ref)===String(s.nis)}),obj={conversation_key:chatState.selectedKey,nis:String(s.nis),santri_nama:s.nama,guru_id:gu?gu.id:g.id,guru_nama:g.nama,wali_id:wu?wu.id:null,wali_nama:s.ortu||('Wali '+s.nama),sender_id:currentUser.id,sender_role:currentUser.role,sender_name:currentUser.nama,message:message,sent_at:new Date().toISOString()};var r=await supabaseClient.from('chatWali').insert([obj]).select();if(r.error)throw r.error;db.chatWali.push(r.data&&r.data[0]?r.data[0]:obj);if(input)input.value='';renderCurrentChat();renderChatContacts();focusChatInput()}catch(err){console.error('kirimPesanChat',err);alert('❌ Pesan gagal dikirim: '+(err.message||err))}}
+async function kirimPesanChat(e){e.preventDefault();try{if(!currentUser||!chatState.selectedKey){alert('❌ Pilih percakapan terlebih dahulu.');return}var s=chatCurrentSantri(),g=chatCurrentGuru();if(!s||!g){alert('❌ Guru pengampu belum ditentukan untuk santri ini.');return}var input=getEl('chat-message-input'),message=input?input.value.trim():'';if(!message)return;var gu=chatUserForGuru(g),wu=(db.users||[]).find(function(u){return u.role==='Wali Santri'&&String(u.ref)===String(s.nis)}),obj={conversation_key:chatState.selectedKey,nis:String(s.nis),santri_nama:s.nama,guru_id:String((gu&&(gu.id||gu.nip||gu.nik))||(g&&(g.id||g.nip||g.nik))||g.nama),guru_nama:g.nama,wali_id:wu?wu.id:null,wali_nama:s.ortu||('Wali '+s.nama),sender_id:String((currentUser&&(currentUser.id||currentUser.ref))||('wali:'+String(s.nis))),sender_role:String((currentUser&&currentUser.role)||'Wali Santri'),sender_name:String((currentUser&&currentUser.nama)||s.ortu||('Wali '+s.nama)),message:message,sent_at:new Date().toISOString()};var r=await supabaseClient.from('chatWali').insert([obj]).select();if(r.error)throw r.error;db.chatWali.push(r.data&&r.data[0]?r.data[0]:obj);if(input)input.value='';renderCurrentChat();renderChatContacts();focusChatInput()}catch(err){console.error('kirimPesanChat',err);alert('❌ Pesan gagal dikirim: '+(err.message||err))}}
 async function hapusPercakapanChat(){try{if(!chatState.selectedKey){alert('❌ Belum ada percakapan yang dipilih.');return}var s=chatCurrentSantri(),g=chatCurrentGuru(),other=currentUser&&currentUser.role==='Guru'?(s?(s.ortu||('Wali '+s.nama)):'Wali'):(g?g.nama:'Guru');if(!confirm('⚠️ Hapus seluruh percakapan dengan '+other+'?\n\nPesan pada percakapan ini akan dihapus.'))return;var r=await supabaseClient.from('chatWali').delete().eq('conversation_key',chatState.selectedKey);if(r.error)throw r.error;db.chatWali=db.chatWali.filter(function(m){return m.conversation_key!==chatState.selectedKey});renderCurrentChat();renderChatContacts();showNotif('🗑️ Percakapan dihapus')}catch(e){alert('❌ Gagal menghapus percakapan: '+(e.message||e))}}
 
 // ============================================================
 // CRUD - PESAN WALI
 // ============================================================
-async function kirimPesanDariWali(e){e.preventDefault();if(!currentUser||currentUser.role!=='Wali Santri')return;try{var s=null;for(var i=0;i<db.santri.length;i++){if(db.santri[i].nis===currentUser.ref){s=db.santri[i];break}}var obj={username:currentUser.username,user_id:currentUser.id,ref:currentUser.ref,namaWali:currentUser.nama,namaSantri:s?s.nama:'Santri',jilid:s?s.jilid:'-',pesan:getVal('wali_pesan_text'),waktu:new Date().toLocaleString('id-ID'),balasan:''};var result=await supabaseClient.from('pesanWali').insert([obj]).select();db.pesanWali.push(result.data[0]);var input=getEl('wali_pesan_text');if(input)input.value='';alert('✅ Pesan terkirim!');renderAll()}catch(err){alert('❌ '+err.message)}}
+async function kirimPesanDariWali(e){
+    e.preventDefault();
+    if(!currentUser || currentUser.role!=='Wali Santri') return;
+    try{
+        var s=null;
+        for(var i=0;i<(db.santri||[]).length;i++){
+            var sx=db.santri[i];
+            if(String(sx.nis||sx.id||'')===String(currentUser.ref||currentUser.nis||'')){s=sx;break;}
+        }
+        if(!s){alert('❌ Data santri untuk akun wali tidak ditemukan.');return;}
+        var guruNama=String(s.guru||s.guruPengampu||'').trim();
+        var guruObj=null;
+        for(var j=0;j<(db.ustadz||[]).length;j++){
+            var gx=db.ustadz[j];
+            if(String(gx.nama||gx.name||'').trim().toLowerCase()===guruNama.toLowerCase()){guruObj=gx;break;}
+        }
+        var pesan=getVal('wali_pesan_text').trim();
+        if(!pesan){alert('❌ Pesan masih kosong.');return;}
+        var obj={username:currentUser.username||'',user_id:currentUser.id||null,ref:currentUser.ref||s.nis||s.id,
+            namaWali:currentUser.nama||currentUser.namaWali||'Wali Santri',namaSantri:s.nama||'Santri',jilid:s.jilid||'-',
+            pesan:pesan,waktu:new Date().toLocaleString('id-ID'),balasan:'',guru_id:guruObj?(guruObj.id||guruObj.user_id||null):null,
+            guru:guruNama};
+        if(!supabaseClient){throw new Error('Koneksi database belum siap.');}
+        var result=await supabaseClient.from('pesanWali').insert([obj]).select();
+        if(result.error) throw result.error;
+        if(result.data&&result.data[0]) db.pesanWali.unshift(result.data[0]);
+        var input=getEl('wali_pesan_text');if(input)input.value='';
+        renderAll();
+    }catch(err){console.error('kirimPesanDariWali',err);alert('❌ Gagal mengirim pesan: '+(err.message||err));}
+}
 function bukaModalBalas(idx){try{var p=db.pesanWali[idx];if(!p)return;var index=getEl('balas_pesan_index'),sumber=getEl('balas_pesan_sumber'),text=getEl('balas_pesan_text');if(index)index.value=idx;if(sumber)sumber.innerText='Dari: '+p.namaWali+' ('+p.namaSantri+' - '+p.jilid+')\nPesan: "'+p.pesan+'"';if(text)text.value=p.balasan||'';openModal('modalBalasPesan')}catch(e){}}
 async function saveBalasanPesan(e){e.preventDefault();try{var idx=parseInt(getVal('balas_pesan_index')),balasan=getVal('balas_pesan_text'),p=db.pesanWali[idx];if(!p)return;await supabaseClient.from('pesanWali').update({balasan:balasan}).eq('id',p.id);p.balasan=balasan;closeModal('modalBalasPesan');alert('✅ Balasan dikirim!');renderAll()}catch(err){alert('❌ '+err.message)}}
 async function hapusPesanWali(idx){if(!confirm('⚠️ Hapus pesan?'))return;try{var p=db.pesanWali[idx];if(!p)return;await supabaseClient.from('pesanWali').delete().eq('id',p.id);db.pesanWali.splice(idx,1);renderAll();alert('✅ Dihapus.')}catch(err){alert('❌ '+err.message)}}
@@ -1582,7 +1467,7 @@ async function resetKurikulum(jilid){if(!confirm('Reset '+jilid+' ke default?'))
 // ============================================================
 // RENDER - MAIN
 // ============================================================
-function renderAll(){try{if(!db.profil)return;setText('sidebar-nama-tpq',db.profil.nama);setSrc('sidebar-logo',db.profil.logo);setText('header-tpq-label',db.profil.nama);setText('dash-nama',db.profil.nama);var alamat=getEl('dash-alamat');if(alamat)alamat.innerHTML='<i class="fa-solid fa-location-dot mr-1.5 text-amber-400"></i> '+db.profil.alamat;setText('dash-metode',db.profil.metode||'Tilawati');setText('dash-kepala',db.profil.kepala);updateSidebarCopyright();setSrc('dash-logo-animasi',db.profil.logo);setText('utility-tpq-name',db.profil.nama);setText('splash-nama-tpq','SIAP LPQ');setText('login-nama-tpq','SIAP LPQ');updateMetodeLabels();var map={p_nama:'nama',p_alamat:'alamat',p_tahunBerdiri:'tahunBerdiri',p_nisp:'nisp',p_bernaung:'bernaung',p_metode:'metode',p_kepala:'kepala',p_bendahara:'bendahara',p_bulanan:'bulanan'};for(var key in map){if(map.hasOwnProperty(key)){var el=getEl(key);if(el)el.value=db.profil[map[key]]||''}}updateAllLogos();updateMetodeLabels();if(currentUser){var hide=currentUser.role==='Wali Santri',ids=['stat-kas-card','stat-ustadz-card-top','dash-perincian-container','dash-pesan-wali-box','dash-pesan-guru-container','dash-pengumuman-wali-container','dash-prestasi-wali-toggle-container','dash-pembayaran-wali-toggle-container','fitur-kegiatan-luar-container'];for(var j=0;j<ids.length;j++){var el=getEl(ids[j]);if(!el)continue;if(ids[j]==='stat-ustadz-card-top'){hide?el.classList.add('hidden'):el.classList.remove('hidden')}else if(ids[j]==='stat-kas-card'){(currentUser.role==='Kepala'||currentUser.role==='Bendahara')?el.classList.remove('hidden'):el.classList.add('hidden')}else if(ids[j]==='dash-perincian-container'){hide?el.classList.add('hidden'):el.classList.remove('hidden')}else if(ids[j]==='dash-pesan-wali-box'||ids[j]==='dash-pesan-guru-container'||ids[j]==='dash-pengumuman-wali-container'||ids[j]==='dash-prestasi-wali-toggle-container'||ids[j]==='dash-pembayaran-wali-toggle-container'){hide?el.classList.remove('hidden'):el.classList.add('hidden')}else if(ids[j]==='fitur-kegiatan-luar-container'){(currentUser.role==='Bendahara'||currentUser.role==='Wali Santri')?el.classList.add('hidden'):el.classList.remove('hidden')}}}var badge=getEl('dashboard-current-date-badge');if(badge)badge.innerHTML='<i class="fa-solid fa-calendar-day mr-1"></i> '+new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});var rekap=getEl('dash-rekap-tanggal');if(rekap)rekap.innerText=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});renderDashboard();renderSantri();renderPrestasi();renderKenaikan();renderPembayaran();renderMutasi();renderUstadz();renderUsers();renderInformasi();renderPesanWali();renderKurikulum();initAnalisis()}catch(e){console.warn('Render error:',e)}}
+function renderAll(){try{if(!db.profil)return;setText('sidebar-nama-tpq',db.profil.nama);setSrc('sidebar-logo',db.profil.logo);setText('header-tpq-label',db.profil.nama);setText('dash-nama',db.profil.nama);var alamat=getEl('dash-alamat');if(alamat)alamat.innerHTML='<i class="fa-solid fa-location-dot mr-1.5 text-amber-400"></i> '+db.profil.alamat;setText('dash-metode',db.profil.metode||'Tilawati');setText('dash-kepala',db.profil.kepala);updateSidebarCopyright();setSrc('dash-logo-animasi',db.profil.logo);setText('utility-tpq-name',db.profil.nama);setText('splash-nama-tpq','SIAP LPQ');setText('login-nama-tpq','SIAP LPQ');updateMetodeLabels();var map={p_nama:'nama',p_alamat:'alamat',p_tahunBerdiri:'tahunBerdiri',p_nisp:'nisp',p_bernaung:'bernaung',p_metode:'metode',p_kepala:'kepala',p_bendahara:'bendahara',p_bulanan:'bulanan'};for(var key in map){if(map.hasOwnProperty(key)){var el=getEl(key);if(el)el.value=db.profil[map[key]]||''}}updateAllLogos();updateMetodeLabels();if(currentUser){var hide=currentUser.role==='Wali Santri';var oldGuruChat=getEl('dash-pesan-guru-container');if(oldGuruChat)oldGuruChat.classList.toggle('hidden',hide);var ids=['stat-kas-card','stat-ustadz-card-top','dash-perincian-container','dash-pesan-wali-box','dash-pesan-guru-container','dash-pengumuman-wali-container','dash-prestasi-wali-toggle-container','dash-pembayaran-wali-toggle-container','fitur-kegiatan-luar-container'];for(var j=0;j<ids.length;j++){var el=getEl(ids[j]);if(!el)continue;if(ids[j]==='stat-ustadz-card-top'){hide?el.classList.add('hidden'):el.classList.remove('hidden')}else if(ids[j]==='stat-kas-card'){(currentUser.role==='Kepala'||currentUser.role==='Bendahara')?el.classList.remove('hidden'):el.classList.add('hidden')}else if(ids[j]==='dash-perincian-container'){hide?el.classList.add('hidden'):el.classList.remove('hidden')}else if(ids[j]==='dash-pesan-wali-box'||ids[j]==='dash-pesan-guru-container'||ids[j]==='dash-pengumuman-wali-container'||ids[j]==='dash-prestasi-wali-toggle-container'||ids[j]==='dash-pembayaran-wali-toggle-container'){hide?el.classList.remove('hidden'):el.classList.add('hidden')}else if(ids[j]==='fitur-kegiatan-luar-container'){(currentUser.role==='Bendahara'||currentUser.role==='Wali Santri')?el.classList.add('hidden'):el.classList.remove('hidden')}}}var badge=getEl('dashboard-current-date-badge');if(badge)badge.innerHTML='<i class="fa-solid fa-calendar-day mr-1"></i> '+new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});var rekap=getEl('dash-rekap-tanggal');if(rekap)rekap.innerText=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});renderDashboard();renderSantri();renderPrestasi();renderKenaikan();renderPembayaran();renderMutasi();renderUstadz();renderUsers();renderInformasi();renderPesanWali();renderKurikulum();initAnalisis()}catch(e){console.warn('Render error:',e)}}
 
 // ============================================================
 // RENDER - DASHBOARD (DIPERBAIKI)
@@ -1687,182 +1572,6 @@ console.log('✅ Tema Hijau ke Emasan Mengkilap!');
   var oldShow=window.showSection; if(typeof oldShow==='function'){window.showSection=function(id){oldShow.apply(this,arguments);if(id==='jadwal')setTimeout(renderJadwal,0)}}
   document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){if(typeof currentUser!=='undefined'&&currentUser)loadJadwal()},1500)});
 })();
-
-document.addEventListener("DOMContentLoaded",function(){try{initAbsensi()}catch(e){console.warn("initAbsensi",e)}});
-
-/* ============================================================
-   ABSENSI REV_12
-   ============================================================ */
-(function(){
-  window.absensiState = window.absensiState || {
-    tab:'santri', tanggal:'', draft:{santri:{},guru:{}}, saved:{santri:{},guru:{}},
-    loaded:false
-  };
-
-  function A(id){ return document.getElementById(id); }
-  function isoToday(){ return new Date().toISOString().slice(0,10); }
-  function key(tab,date){ return tab+'|'+date; }
-  function storeKey(tab){ return 'siaplpq_absensi_'+tab; }
-
-  function loadSaved(tab){
-    try{
-      var raw=localStorage.getItem(storeKey(tab));
-      return raw?JSON.parse(raw):{};
-    }catch(e){return {}}
-  }
-  function saveSaved(tab,data){
-    try{localStorage.setItem(storeKey(tab),JSON.stringify(data));}catch(e){}
-  }
-
-  function teacherRows(){
-    var a=(window.db&&Array.isArray(db.guru))?db.guru:[];
-    return a.map(function(g,i){return {
-      id:String(g.id||g.nip||g.nik||('guru-'+i)),
-      nama:g.nama||g.name||'Guru '+(i+1),
-      meta:g.nip||g.jabatan||g.role||''
-    }});
-  }
-  function studentRows(){
-    var a=(window.db&&Array.isArray(db.santri))?db.santri:[];
-    return a.map(function(s,i){return {
-      id:String(s.nis||s.id||('santri-'+i)),
-      nama:s.nama||s.name||'Santri '+(i+1),
-      meta:[s.jilid,s.guru,s.ortu||s.wali].filter(Boolean).join(' · ')
-    }});
-  }
-
-  function rows(){
-    return absensiState.tab==='guru'?teacherRows():studentRows();
-  }
-
-  window.AbsensiTab=function(tab){
-    absensiState.tab=tab==='guru'?'guru':'santri';
-    A('abs-tab-santri')?.classList.toggle('active',absensiState.tab==='santri');
-    A('abs-tab-guru')?.classList.toggle('active',absensiState.tab==='guru');
-    RenderAbsensi();
-  };
-
-  window.RenderAbsensi=function(){
-    var date=A('abs-tanggal')?.value||isoToday();
-    absensiState.tanggal=date;
-    var saved=loadSaved(absensiState.tab);
-    var k=key(absensiState.tab,date);
-    var data=saved[k]||{};
-    var q=(A('abs-search')?.value||'').trim().toLowerCase();
-    var arr=rows().filter(function(r){
-      return !q || (r.nama+' '+r.id+' '+r.meta).toLowerCase().includes(q);
-    });
-    var list=A('abs-list'); if(!list)return;
-    var locked=!!saved[k];
-    A('abs-lock-note')?.classList.toggle('hidden',!locked);
-    var h='';
-    arr.forEach(function(r){
-      var status=data[r.id]||'Hadir';
-      h+='<div class="abs-row">'+
-        '<div class="min-w-0 flex-1"><div class="abs-name">'+escA(r.nama)+'</div>'+
-        '<div class="abs-meta">'+escA(r.id)+(r.meta?' · '+escA(r.meta):'')+'</div></div>'+
-        '<div class="abs-status">'+['Hadir','Izin','Sakit','Alpa'].map(function(st){
-          return '<button '+(status===st?'class="active" ':'')+(locked?'disabled ':'')+
-            'onclick="SetAbsensi(\\''+escAttrA(r.id)+'\\',\\''+st+'\\')">'+st+'</button>';
-        }).join('')+'</div></div>';
-    });
-    list.innerHTML=h||'<div class="text-center py-8 text-sm text-slate-400">Data tidak ditemukan.</div>';
-    updateCounters(data);
-  };
-
-  window.SetAbsensi=function(id,status){
-    var saved=loadSaved(absensiState.tab), k=key(absensiState.tab,absensiState.tanggal);
-    if(saved[k])return;
-    absensiState.draft[absensiState.tab]=absensiState.draft[absensiState.tab]||{};
-    absensiState.draft[absensiState.tab][id]=status;
-    // Preview through temporary data
-    var old=loadSaved(absensiState.tab); old[k]=Object.assign({},old[k]||{},absensiState.draft[absensiState.tab]);
-    var orig=localStorage.getItem(storeKey(absensiState.tab));
-    try{localStorage.setItem(storeKey(absensiState.tab),JSON.stringify(old));RenderAbsensi();}
-    finally{
-      if(orig===null)localStorage.removeItem(storeKey(absensiState.tab));else localStorage.setItem(storeKey(absensiState.tab),orig);
-    }
-  };
-
-  window.AbsensiSemuaHadir=function(){
-    var saved=loadSaved(absensiState.tab), k=key(absensiState.tab,absensiState.tanggal);
-    if(saved[k])return;
-    var d={}; rows().forEach(function(r){d[r.id]='Hadir';});
-    absensiState.draft[absensiState.tab]=d; RenderAbsensiDraft(d);
-  };
-
-  function RenderAbsensiDraft(d){
-    var list=A('abs-list'); if(!list)return;
-    var q=(A('abs-search')?.value||'').trim().toLowerCase();
-    var arr=rows().filter(function(r){return !q||(r.nama+' '+r.id+' '+r.meta).toLowerCase().includes(q)});
-    list.innerHTML=arr.map(function(r){
-      var status=d[r.id]||'Hadir';
-      return '<div class="abs-row"><div class="min-w-0 flex-1"><div class="abs-name">'+escA(r.nama)+'</div><div class="abs-meta">'+escA(r.id)+(r.meta?' · '+escA(r.meta):'')+'</div></div><div class="abs-status">'+['Hadir','Izin','Sakit','Alpa'].map(function(st){return '<button '+(status===st?'class="active" ':'')+'onclick="SetDraftAbsensi(\\''+escAttrA(r.id)+'\\',\\''+st+'\\')">'+st+'</button>'}).join('')+'</div></div>';
-    }).join('');
-    updateCounters(d);
-  }
-
-  window.SetDraftAbsensi=function(id,status){
-    var d=absensiState.draft[absensiState.tab]||{};
-    d[id]=status; absensiState.draft[absensiState.tab]=d; RenderAbsensiDraft(d);
-  };
-
-  window.SimpanAbsensi=function(){
-    var tab=absensiState.tab,date=absensiState.tanggal||isoToday();
-    var d=absensiState.draft[tab]||{};
-    rows().forEach(function(r){if(!d[r.id])d[r.id]='Hadir';});
-    var saved=loadSaved(tab),k=key(tab,date);
-    if(saved[k]){alert('Absensi tanggal ini sudah dilakukan dan terkunci.');return;}
-    saved[k]=d;saveSaved(tab,saved);
-    absensiState.draft[tab]={};
-    RenderAbsensi();
-    alert('Absensi '+(tab==='guru'?'guru':'santri')+' tanggal '+date+' berhasil disimpan dan dikunci.');
-  };
-
-  function updateCounters(d){
-    var c={Hadir:0,Izin:0,Sakit:0,Alpa:0};
-    Object.keys(d||{}).forEach(function(k){if(c[d[k]]!==undefined)c[d[k]]++;});
-    ['hadir','izin','sakit','alpa'].forEach(function(x){var el=A('abs-c-'+x);if(el)el.textContent=c[x.charAt(0).toUpperCase()+x.slice(1)]||0});
-  }
-
-  window.AnalisisAbsensi=function(){
-    var a=A('abs-periode-awal')?.value,b=A('abs-periode-akhir')?.value;
-    if(!a||!b){alert('Pilih tanggal awal dan akhir.');return}
-    var tab=absensiState.tab,saved=loadSaved(tab), days=Object.keys(saved).filter(function(k){var d=k.split('|')[1];return k.startsWith(tab+'|')&&d>=a&&d<=b});
-    var names={}; rows().forEach(function(r){names[r.id]=r.nama});
-    var totals={Hadir:0,Izin:0,Sakit:0,Alpa:0};
-    days.forEach(function(k){Object.values(saved[k]).forEach(function(st){if(totals[st]!==undefined)totals[st]++})});
-    var total=Object.values(totals).reduce(function(x,y){return x+y},0),pct=total?((totals.Hadir/total)*100).toFixed(1):'0.0';
-    A('abs-analysis').innerHTML='<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">'+
-      '<div class="rounded-xl bg-emerald-50 p-3"><b>Hari tersimpan</b><br>'+days.length+'</div>'+
-      '<div class="rounded-xl bg-slate-50 p-3"><b>Total catatan</b><br>'+total+'</div>'+
-      '<div class="rounded-xl bg-amber-50 p-3"><b>Kehadiran</b><br>'+pct+'%</div>'+
-      '<div class="rounded-xl bg-red-50 p-3"><b>Alpa</b><br>'+totals.Alpa+'</div></div>'+
-      '<div>Periode <b>'+a+'</b> s.d. <b>'+b+'</b>: Hadir '+totals.Hadir+', Izin '+totals.Izin+', Sakit '+totals.Sakit+', Alpa '+totals.Alpa+'.</div>';
-  };
-
-  window.CetakAbsensiPDF=function(){
-    var a=A('abs-periode-awal')?.value,b=A('abs-periode-akhir')?.value;
-    var title='Laporan Absensi '+(absensiState.tab==='guru'?'Guru':'Santri');
-    var body=A('abs-analysis')?.innerText||'Belum ada analisis.';
-    var w=window.open('','_blank');
-    if(!w){alert('Popup PDF diblokir browser. Izinkan popup lalu coba lagi.');return}
-    w.document.write('<html><head><title>'+title+'</title><style>body{font-family:Arial;padding:30px}h1{font-size:20px} .sig{margin-top:70px;text-align:right}</style></head><body><h1>'+title+'</h1><p>Periode: '+escA(a||'-')+' s.d. '+escA(b||'-')+'</p><p>'+escA(body)+'</p><div class="sig">Kepala Lembaga<br><br><br>(________________)</div><script>window.print()<\/script></body></html>');
-    w.document.close();
-  };
-
-  function escA(x){return String(x??'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  function escAttrA(x){return String(x??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
-  window.initAbsensi=function(){
-    var t=A('abs-tanggal'), a=A('abs-periode-awal'), b=A('abs-periode-akhir');
-    if(t&&!t.value)t.value=isoToday();
-    if(a&&!a.value){var d=new Date();d.setDate(1);a.value=d.toISOString().slice(0,10)}
-    if(b&&!b.value)b.value=isoToday();
-    RenderAbsensi();
-  };
-})();
-
-
 </script>\n<!-- REV_11_FINAL_COUNTER_OVERRIDE -->
 <style id="rev11-final-counter-override">
 /* REV_11 FINAL: gold typography on green glossy dashboard/header; prevent clipping */
@@ -1903,6 +1612,66 @@ main#main-content-area > header #user-badge{color:#f6d365!important}
 <style id="rev11-final-polish">
 .dash-counter-bg-v3,.dash-counter-bg-v3 *{box-sizing:border-box}.dash-counter-bg-v3{color:#f5d76e!important}.dash-counter-bg-v3 .counter-label,.dash-counter-bg-v3 .counter-value,.dash-counter-bg-v3 h1,.dash-counter-bg-v3 h2,.dash-counter-bg-v3 h3,.dash-counter-bg-v3 p,.dash-counter-bg-v3 span,.dash-counter-bg-v3 b{color:#f5d76e!important;text-shadow:0 1px 2px rgba(0,0,0,.28)}.dash-counter-bg-v3 .counter-label,.dash-counter-bg-v3 .counter-value{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;word-break:normal!important;overflow-wrap:anywhere!important}.dash-counter-bg-v3 .counter-value{font-size:clamp(1rem,2.4vw,1.45rem);line-height:1.25}.dash-counter-bg-v3 .counter-label{font-size:clamp(.68rem,1.5vw,.82rem);line-height:1.25}.dash-counter-bg-v3 .stat-card,.dash-counter-bg-v3 [class*="counter"]{min-width:0}
 </style>
+<script>
+(function(){function patchWaliUI(){try{if(window.currentUser&&currentUser.role==='Wali Santri'){var old=document.getElementById('dash-pesan-guru-container');if(old)old.classList.add('hidden');var links=document.querySelectorAll('.nav-link');links.forEach(function(a){if((a.textContent||'').trim().toLowerCase()==='chat guru')a.childNodes[a.childNodes.length-1].nodeValue=' Chat Wali';});}}catch(e){}} if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',patchWaliUI);else patchWaliUI();})();
+
+/* ABSENSI REV12 JS */
+var absTab='santri',absDraft={},absCurrentDate='';
+function absKey(tab,date){return 'siaplpq_abs_'+tab+'_'+date}
+function absRows(){return absTab==='guru'?(db.ustadz||[]):(db.santri||[])}
+function absId(x){return String(x.id||x.nis||x.nip||x.nik||x.username||'')}
+function absName(x){return String(x.nama||x.name||'Tanpa Nama')}
+function absMeta(x){return absTab==='guru'?String(x.nip||x.jabatan||'Guru'):String([x.nis,x.jilid,x.guru].filter(Boolean).join(' · '))}
+function absLoad(){
+  try{
+    var table=absTab==='guru'?'absensi_guru':'absensi_santri', arr=Array.isArray(db[table])?db[table]:[], out={}, found=false;
+    for(var i=0;i<arr.length;i++){var r=arr[i];if(String(r.tanggal||r.date||'').slice(0,10)===String(absCurrentDate)){out[String(r.person_id||r.santri_id||r.guru_id||'')]=r.status||'Hadir';found=true;}}
+    if(found)return out;
+    return JSON.parse(localStorage.getItem(absKey(absTab,absCurrentDate))||'null');
+  }catch(e){return null}
+}
+function absSetStatus(id,st){if(absLoad())return;absDraft[id]=st;renderAbsensi()}
+function setAbsTab(t){absTab=t;absDraft={};document.getElementById('abs-tab-santri').classList.toggle('active',t==='santri');document.getElementById('abs-tab-guru').classList.toggle('active',t==='guru');renderAbsensi()}
+function renderAbsensi(){var d=document.getElementById('abs-date');if(!d)return;absCurrentDate=d.value||new Date().toISOString().slice(0,10);d.value=absCurrentDate;var saved=absLoad(),q=(document.getElementById('abs-q').value||'').toLowerCase(),arr=absRows().filter(function(x){return !q||(absName(x)+' '+absId(x)+' '+absMeta(x)+' '+String(x.ortu||'')).toLowerCase().includes(q)}),list=document.getElementById('abs-list');document.getElementById('abs-lock').classList.toggle('hidden',!saved);var data=saved||absDraft;var c={Hadir:0,Izin:0,Sakit:0,Alpa:0};arr.forEach(function(x){var st=data[absId(x)]||'Hadir';c[st]++;var buttons=['Hadir','Izin','Sakit','Alpa'].map(function(v){return '<button '+(st===v?'class="active" ':'')+(saved?'disabled ':'')+'onclick="absSetStatus(\''+absId(x).replace(/'/g,"\\'")+'\',\''+v+'\')">'+v+'</button>'}).join('');list.innerHTML+= ''});var h='';arr.forEach(function(x){var st=data[absId(x)]||'Hadir';h+='<div class="abs-row"><div><div class="abs-name">'+escAbs(absName(x))+'</div><div class="abs-meta">'+escAbs(absMeta(x))+'</div></div><div class="abs-status">'+['Hadir','Izin','Sakit','Alpa'].map(function(v){return '<button '+(st===v?'class="active" ':'')+(saved?'disabled ':'')+'onclick="absSetStatus(\''+escAttrAbs(absId(x))+'\',\''+v+'\')">'+v+'</button>'}).join('')+'</div></div>'});list.innerHTML=h||'<div class="text-center p-5 text-sm text-slate-400">Data tidak ditemukan.</div>';['hadir','izin','sakit','alpa'].forEach(function(v){document.getElementById('abs-'+v).textContent=c[v.charAt(0).toUpperCase()+v.slice(1)]||0})}
+function setAllPresent(){if(absLoad())return;absDraft={};absRows().forEach(function(x){absDraft[absId(x)]='Hadir'});renderAbsensi()}
+async function saveAbsensi(){
+  if(absLoad()){alert('Absensi tanggal ini sudah terkunci.');return;}
+  if(absTab==='guru' && currentUser && currentUser.role!=='Kepala'){
+    var allowed=false, auth=Array.isArray(db.absensi_guru_otorisasi)?db.absensi_guru_otorisasi:[];
+    for(var ai=0;ai<auth.length;ai++){var ar=auth[ai];if(String(ar.guru_id||ar.user_id)===String(currentUser.id) && !ar.revoked_at){allowed=true;break;}}
+    if(!allowed){alert('❌ Anda belum diberi kewenangan oleh Kepala untuk melakukan absensi guru.');return;}
+  }
+  var data={};absRows().forEach(function(x){data[absId(x)]=absDraft[absId(x)]||'Hadir'});
+  var table=absTab==='guru'?'absensi_guru':'absensi_santri';
+  var rows=absRows().map(function(x){return {tanggal:absCurrentDate,person_id:absId(x),status:data[absId(x)],penginput_id:currentUser?currentUser.id:null,penginput_nama:currentUser?currentUser.nama:null}});
+  if(supabaseClient){try{var r=await supabaseClient.from(table).upsert(rows,{onConflict:'tanggal,person_id'});if(r.error)throw r.error;db[table]=(db[table]||[]).filter(function(x){return String(x.tanggal||'').slice(0,10)!==absCurrentDate}).concat(r.data||rows);}catch(e){console.warn('Supabase absensi:',e);localStorage.setItem(absKey(absTab,absCurrentDate),JSON.stringify(data));}}
+  else{localStorage.setItem(absKey(absTab,absCurrentDate),JSON.stringify(data));}
+  absDraft={};renderAbsensi();alert('Absensi tersimpan dan dikunci.');
+}
+
+
+async function beriIzinAbsensiGuru(guruId){
+  if(!currentUser||currentUser.role!=='Kepala'){alert('Hanya Kepala yang dapat memberi kewenangan.');return;}
+  try{var row={guru_id:String(guruId),granted_by:currentUser.id||null,granted_by_nama:currentUser.nama||'Kepala',granted_at:new Date().toISOString(),revoked_at:null};var r=await supabaseClient.from('absensi_guru_otorisasi').upsert(row,{onConflict:'guru_id'});if(r.error)throw r.error;db.absensi_guru_otorisasi=(db.absensi_guru_otorisasi||[]).filter(function(x){return String(x.guru_id)!==String(guruId)}).concat(r.data||row);alert('Kewenangan absensi guru diberikan.');}catch(e){alert('❌ '+(e.message||e));}
+}
+async function cabutIzinAbsensiGuru(guruId){
+  if(!currentUser||currentUser.role!=='Kepala')return;
+  try{var r=await supabaseClient.from('absensi_guru_otorisasi').update({revoked_at:new Date().toISOString()}).eq('guru_id',String(guruId));if(r.error)throw r.error;db.absensi_guru_otorisasi=(db.absensi_guru_otorisasi||[]).map(function(x){return String(x.guru_id)===String(guruId)?Object.assign({},x,{revoked_at:new Date().toISOString()}):x});alert('Kewenangan dicabut.');}catch(e){alert('❌ '+(e.message||e));}
+}
+function analyzeAbsensi(){var a=document.getElementById('abs-from').value,b=document.getElementById('abs-to').value;if(!a||!b){alert('Pilih periode.');return}var c={Hadir:0,Izin:0,Sakit:0,Alpa:0},n=0;for(var d=new Date(a);d.toISOString().slice(0,10)<=b;d.setDate(d.getDate()+1)){var ds=d.toISOString().slice(0,10),raw=localStorage.getItem(absKey(absTab,ds));if(!raw)continue;var obj=JSON.parse(raw);Object.values(obj).forEach(function(st){if(c[st]!==undefined)c[st]++});n++}var total=c.Hadir+c.Izin+c.Sakit+c.Alpa,p=total?(c.Hadir/total*100).toFixed(1):'0.0';document.getElementById('abs-analysis').innerHTML='<b>'+n+' hari tersimpan</b> · Hadir '+c.Hadir+' · Izin '+c.Izin+' · Sakit '+c.Sakit+' · Alpa '+c.Alpa+' · <b>'+p+'% hadir</b>'}
+function printAbsensi(){
+  var w=window.open('','_blank');
+  if(!w){alert('Izinkan popup untuk mencetak PDF.');return;}
+  var title='Laporan Absensi '+(absTab==='guru'?'Guru':'Santri');
+  var period='Periode: '+escAbs(document.getElementById('abs-from').value)+' s.d. '+escAbs(document.getElementById('abs-to').value);
+  var body=escAbs(document.getElementById('abs-analysis').innerText);
+  w.document.write('<html><head><title>'+title+'</title><style>body{font-family:Arial;padding:28px}.sig{margin-top:70px;text-align:right}</style></head><body><h2>'+title+'</h2><p>'+period+'</p><div>'+body+'</div><div class=\"sig\">Kepala Lembaga<br><br><br>________________</div></body></html>');
+  w.document.close();
+  setTimeout(function(){try{w.print();}catch(e){}},300);
+}
+
+function escAbs(x){return String(x||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function escAttrAbs(x){return String(x||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
 </script>
 </body>
 </html>
